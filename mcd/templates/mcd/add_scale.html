@@ -1,0 +1,52 @@
+{% extends 'mcd/base.html' %}
+{% block title %}
+    MCD | Upload
+{% endblock %}
+{% block body %}
+    <body onload="get_location()">
+
+    <h1>Add two points to make a line, and specify the real length, to compute the image scale</h1>
+    {% if error_message %}
+        <p><strong>{{ error_message }}</strong></p>
+    {% elif success_message %}
+        <p><strong>{{ success_message }}</strong></p>
+    {% endif %}
+
+    {% if clicked_x %}
+        <p id="x_coord">{{ clicked_x }}</p>
+    {% endif %}
+
+    {% if clicked_y %}
+        <p id="y_coord">{{ clicked_y }}</p>
+    {% endif %}
+
+    <div class="relative-wrapper">
+        <a href={% url 'mcd:add-scale' display_image.pk %}>
+            <img onload="get_location()" id="interactive-img" ismap src="{{ display_image.input_photo.url }}">
+        </a>
+        <div id="image-marker"></div>
+    </div>
+    </body>
+
+<script>
+    function get_location()
+    {
+        x = document.getElementById('x_coord').innerHTML;
+        y = document.getElementById('y_coord').innerHTML;
+        document.getElementById('interactive-img').onload = put_marker(x, y);
+    }
+
+function put_marker(from_left, from_top)
+    {
+        with(document.getElementById('image-marker'))
+        {
+            style.left = from_left + "px";
+            style.top = from_top + "px";
+            style.display = "block";
+        }
+    }
+</script>
+
+
+{% endblock %}
+

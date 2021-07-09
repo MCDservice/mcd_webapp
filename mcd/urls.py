@@ -38,6 +38,10 @@ urlpatterns = [
     url(r'^record/(?P<pk>[0-9]+)/$', views.RecordDetailsView.as_view(),
         name='detailed_record'),
 
+    # /mcd/object/ID/ (detailed view of the records)
+    url(r'^record/(?P<pk>[0-9]+)/image-(?P<image_pk>[0-9]+)/$', views.RecordDetailsView.as_view(),
+        name='detailed_record_image_pk'),
+
     # url(r'^upload/$', views.upload_to_analysis, name='upload'),
     url(r'^register/$', views.UserFormView.as_view(), name='register'),
     url(r'^login/$',  views.login_view, name='login'),
@@ -55,6 +59,10 @@ urlpatterns = [
     # mcd/update/pk
     url(r'^update/(?P<pk>[0-9]+)$', views.PhotoAnalysisUpdate.as_view(), name='update'),
     url(r'^delete/(?P<pk>[0-9]+)$', views.PhotoAnalysisDelete.as_view(), name='upload'),
+
+    # add scale
+    url(r'^add-scale/(?P<pk>[0-9]+)/$', views.add_scale, name='add-scale'),
+    url(r'^add-scale/(?P<pk>[0-9]+)/(?P<x_co>[0-9]+),(?P<y_co>[0-9]+)$', views.add_scale, name='add-scale'),
 
     url(r'^upload/submit$', views.submit_to_analysis, name='submit_to_analysis'),
     # url(r'^upload/submit$', views.submit_to_analysis, name='submit_to_analysis'),

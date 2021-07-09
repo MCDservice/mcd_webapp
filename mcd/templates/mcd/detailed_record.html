@@ -5,7 +5,7 @@
 {% endblock %}
 {% block body %}
 {#    <h1>{{ page_title }}</h1>#}
-    <h1>Record #'{{ record.id }}' | '{{ record.title }}'</h1>
+
 {#    Number of images in this object: {{ object.num_photos }}#}
 {#    <div class="wrapper-record">#}
 {#        <div id="mySidenav" class="sidenav">#}
@@ -24,7 +24,7 @@
         <div class="wrapper">
         <!-- Sidebar  -->
         <nav id="sidebar">
-            <div class="sidebar-header">
+            <div class="sidebar-header text-sidebar">
                 <h3>History</h3>
                 <strong>
                     <span class="glyphicon glyphicon-time" aria-hidden="true"></span>
@@ -33,40 +33,45 @@
 
             <ul class="list-unstyled components">
                 <li class="active">
-                    <a href="#homeSubmenu" data-toggle="collapse" aria-expanded="false" class="dropdown-toggle">
+                    <a href="#homeSubmenu"
+                       data-toggle="collapse"
+                       aria-expanded="false"
+                       class="dropdown-toggle text-sidebar">
                         <i class="fas fa-home"></i>
-                        Home
+                        Compare
                     </a>
                     <ul class="collapse list-unstyled" id="homeSubmenu">
                         <li>
-                            <a href="#">Home 1</a>
+                            <a href="#">Comparing method 1</a>
                         </li>
                         <li>
-                            <a href="#">Home 2</a>
+                            <a href="#">Comparing method 2</a>
                         </li>
                         <li>
-                            <a href="#">Home 3</a>
+                            <a href="#">Comparing method 3</a>
                         </li>
                     </ul>
                 </li>
                {% for photo in images_of_record %}
                     <li class="list-group-sidebar">
                     <div class="list-item-container">
-                        <div class="list-item-first label-grey hideable">
-                            #{{ photo.id }}
+                        <div class="list-item-first label-grey pad-ends-8px
+                                    fill-available hideable">
+                            #{{ photo.id }} | {{ photo.title }}
                         </div>
-                        <div class="list-item label-grey-outline hideable">
-                            {{ photo.object_id.title }}
-                        </div>
-                        <div class="list-item hideable">
-    {#                        <a href="{% url 'mcd:photo_analysis_detailed' photo.id %}">#}
-                            <a href="{% url 'mcd:photo_analysis_detailed' photo.id %}">
-                                {{ photo.title }}
+
+                        <div class="list-item-sidebar text-sidebar hideable">
+                           <a href="{% url 'mcd:detailed_record_image_pk' record.id photo.id %}">
+                                {{ photo.datetime_uploaded }}
                             </a>
                         </div>
-                        <div class="list-item">
-                                {{ photo.datetime_uploaded }}
+
+                        <div class="list-item-sidebar text-sidebar text-small showable hidden">
+                           <a href="{% url 'mcd:detailed_record_image_pk' record.id photo.id %}">
+                                {{ photo.datetime_uploaded |date:"M d, Y" }}
+                            </a>
                         </div>
+
                         <div class="list-item-last hideable">
                             {% if photo.analysis_complete %}
                                 <span class="text-green glyphicon glyphicon-ok" aria-hidden="true"></span>
@@ -86,32 +91,41 @@
         <div id="content">
 
             <nav class="navbar navbar-expand-lg navbar-light bg-light">
-                <div class="container-fluid">
-                    <button type="button" id="sidebarCollapse" class="btn btn-info">
-                        <i class="fas fa-align-left"></i>
-                        <span>Toggle Sidebar</span>
+                <div class="container-fluid div-flex">
+                    <button type="button" id="sidebarCollapse" class="btn btn-toggle-menu margin-right-30px">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="glyphicon glyphicon-align-justify" aria-hidden="true"></span>&nbsp
                     </button>
+                    <h1 class="text-abel">
+                         Record #{{ record.id }} | {{ record.title }}
+                        <p class="label-grey-outline margin-top-5px">
+                            Project: {{ record.object_id.title }} | Image Analysis ID: {{ display_image.pk }}
+                        </p>
+                    </h1>
                 </div>
             </nav>
 
-            <h2>Collapsible Sidebar Using Bootstrap 4</h2>
-            <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
-            <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+            <h2>Input Image
+                <a class="label-grey text-normal" href="">
+                    {{ display_image.title }}
+                </a>
+                &nbsp
+                <a class="text-normal" href="{% url 'mcd:photo_analysis_detailed' display_image.id %}">
+                    <span class="glyphicon glyphicon-eye-open" aria-hidden="true"></span>&nbsp
+                </a>
+                <a class="text-normal" href="{% url 'mcd:update' display_image.id %}">
+                    <span class="glyphicon glyphicon-cog" aria-hidden="true"></span>&nbsp
+                </a>
+            </h2>
+            <img src="{{ display_image.input_photo.url }}">
+
+            <h2>Output Image:</h2>
+            {% if display_image.output_photo %}
+                <img src="{{ display_image.output_photo.url }}">
+            {% endif %}
 
             <div class="line"></div>
 
-            <h2>Lorem Ipsum Dolor</h2>
-            <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
-
-            <div class="line"></div>
-
-            <h2>Lorem Ipsum Dolor</h2>
-            <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
-
-            <div class="line"></div>
-
-            <h3>Lorem Ipsum Dolor</h3>
-            <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
         </div>
     </div>
 
@@ -122,35 +136,11 @@
             {
                 $('#sidebar').toggleClass('active');
                 $('.hideable').toggleClass('hidden');
+                $('.showable').toggleClass('hidden');
+                $('.shrinkable').toggleClass('text-small');
             });
         });
     </script>
 
-
-
-<script>
-function openNav() {
-  {#document.getElementById("mySidenav").style.width = "250px";#}
-
-  var hideable_elements = document.getElementsByClassName("hideable");
-
-  for(var i = 0, all = hideable_elements.length; i < all; i++)
-  {
-     hideable_elements[i].classList.remove('hidden');
-  }
-
-}
-
-function closeNav() {
-  {#document.getElementById("mySidenav").style.width = "0";#}
-
-  var hideable_elements = document.getElementsByClassName("hideable");
-
-  for(var i = 0, all = hideable_elements.length; i < all; i++)
-  {
-     hideable_elements[i].classList.add('hidden');
-  }
-}
-</script>
 
 {% endblock %}

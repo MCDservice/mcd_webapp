@@ -214,13 +214,21 @@ class RecordDetailsView(generic.DetailView):
         # get current object primary key (id):
         current_record = self.kwargs['pk']
         # filter out the objects that have been uploaded by the current user:
-        images_in_record = MCD_Photo_Analysis.objects.filter(record_id=current_record) \
+        image_ids_in_record = MCD_Photo_Analysis.objects.filter(record_id=current_record) \
             .values_list('record_id', flat=True).first()
         # return only the objects that match the current user logged in:
         # return MCD_Photo_Analysis.objects.filter(object_id=images_in_object)
 
+        images_in_record = MCD_Photo_Analysis.objects.filter(record_id=image_ids_in_record)
+
+        try:
+            display_image = MCD_Photo_Analysis.objects.get(pk=self.kwargs['image_pk'])
+        except:
+            display_image = images_in_record.latest('datetime_uploaded')
+
         data = super().get_context_data(**kwargs)
-        data['images_of_record'] = MCD_Photo_Analysis.objects.filter(record_id=images_in_record)
+        data['images_of_record'] = images_in_record.reverse()
+        data['display_image'] = display_image
         return data
 
 
@@ -502,6 +510,26 @@ class UserFormView(View):
                 print("redirecting user to form ...")
                 return render(request, self.template_name, {'form': form})
 
+
+def add_scale(request, pk):
+
+    display_image = MCD_Photo_Analysis.objects.get(pk=pk)
+
+    try:
+        (cx,cy)=list(request.GET.keys())[0].split(',')
+        # cx=request.GET.get('param1')
+        # cy=request.GET.get('param2')
+    # print(">>>> received GET request:", list(request.GET.keys())[0].split(','))
+    except:
+        cx = 0
+        cy = 0
+    # map was clicked at cx,cy coordinates
+    x=int(cx)
+    y=int(cy)
+
+    return render(request, "mcd/add_scale.html", {'display_image' : display_image,
+                                                  'clicked_x' : x,
+                                                  'clicked_y' : y})
 
 def logout_view(request):
     print("logging out user: ", request.user.username)
