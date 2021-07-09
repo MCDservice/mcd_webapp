@@ -1,0 +1,29 @@
+{# include the template block: #}
+{% extends 'mcd/base.html' %}
+{% block title %}
+    MCD | Upload
+{% endblock %}
+{% block body %}
+    <h1>Submit a masonry wall image for analysis:</h1>
+    {% if error_message %}
+        <p><strong>{{ error_message }}</strong></p>
+    {% elif success_message %}
+        <p><strong>{{ success_message }}</strong></p>
+    {% endif %}
+
+{#    <form action="{% url 'mcd:submit_to_analysis' %}" method="post">#}
+{#        {% csrf_token %}#}
+{#        <label>#}
+{#            <input type="text">#}
+{#        </label><br>#}
+{#        <input type="submit" id="proceed_submit">#}
+{#    </form>#}
+
+    <form action="{% url 'mcd:submit_to_analysis' %}" method="post">
+        {% csrf_token %}
+        <label for="input_img">Input Image: </label>
+        <input id="input_img" type="text" name="input_img" value="{{ input_img }}">
+        <input type="submit" value="OK">
+    </form>
+
+{% endblock %}

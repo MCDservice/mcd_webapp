@@ -1,0 +1,42 @@
+{# include the template block: #}
+{% extends 'mcd/base.html' %}
+
+{% block body %}
+
+    {% if user_photos %}
+        <h3>List of all submitted images for analysis:</h3>
+        <ul class="list-group">
+        {% for photo in user_photos %}
+
+                <li class="list-group-item">
+                <div class="list-item-container">
+                    <div class="list-item-first label-grey">
+                        #{{ photo.id }}
+                    </div>
+                    <div class="list-item label-grey-outline">
+                        {{ photo.object_id.title }}
+                    </div>
+                    <div class="list-item">
+                        <a href="{% url 'mcd:photo_analysis_detailed' photo.id %}">
+                            {{ photo.title }}
+                        </a>
+                    </div>
+                    <div class="list-item-last">
+                        {% if photo.analysis_complete %}
+                            <span class="text-green glyphicon glyphicon-ok" aria-hidden="true"></span>
+                        {% else %}
+                            <span class="text-orange glyphicon glyphicon-refresh" aria-hidden="true"></span>
+                        {% endif %}
+                    </div>
+                </div>
+                </li>
+
+        {% endfor %}
+        </ul>
+    {% else %}
+        <h3>No Photos Analysed</h3>
+    {% endif %}
+
+{% endblock %}
+
+

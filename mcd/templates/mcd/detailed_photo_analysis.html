@@ -1,0 +1,15 @@
+{# include the template block: #}
+{% extends 'mcd/base.html' %}
+{% block title %}
+    MCD | Details
+{% endblock %}
+{% block body %}
+    <h1>Results for Analysis ID '{{ photo_analysis.id }}'</h1>
+    <h2>Input Image:</h2>
+    <img src="{{ photo_analysis.input_photo.url }}">
+
+    <h2>Output Image:</h2>
+    {% if photo_analysis.output_photo %}
+        <img src="{{ photo_analysis.output_photo.url }}">
+    {% endif %}
+{% endblock %}

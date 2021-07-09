@@ -1,0 +1,43 @@
+{% extends 'mcd/base.html' %}
+{% block title %}MCD | Register {% endblock %}
+
+{% block body %}
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-sm-12 col-md-7">
+                <div class="panel panel-default">
+                    <div class="panel-body">
+
+                        <h3>Log in:</h3>
+{#                        {% if error_message %}#}
+{#                            <p><strong>{{ error_message }}</strong></p>#}
+{#                        {% endif %}#}
+
+                        <form class="form-horizontal" role="form" method="post">
+                            {% csrf_token %}
+                            {% include 'mcd/form/form_template.html' %}
+
+{#                          if the user is to be redirected after logging in ... #}
+{#                          ... (to a page other than index/main)  #}
+                            {% if request.GET.next %}
+                                <h2>test worked {{ request.GET.next }}</h2>
+                                <input type="hidden" name="next" value="{{ request.GET.next }}">
+{#                               on submit, we will send a post request with 'value' specified #}
+                            {% endif %}
+
+                            <div class="form-group">
+                                <div class="col-sm-offset--2 col-sm-10">
+                                    <button type="submit" class="btn btn-success">
+                                        Log in
+                                    </button>
+                                </div>
+
+                            </div>
+                        </form>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

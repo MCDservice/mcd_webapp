@@ -1,0 +1,22 @@
+{# include the template block: #}
+{% extends 'mcd/base.html' %}
+
+{% block body %}
+
+    {% if user.is_authenticated %}
+        STATS PAGE
+    {% else %}
+        <div class="welcomescreen">
+            <div class="card text-center bg-dark mb-3">
+                <hr class="divider">
+                <p class="text-big">HI!</p>
+                <p class="text-title">Welcome to the Masonry Crack Detection application!</p>
+                <hr class="divider">
+                <p class="text-title-small format">Please log in to access the image analysis services.</p>
+            </div>
+        </div>
+    {% endif %}
+
+{% endblock %}
+
+

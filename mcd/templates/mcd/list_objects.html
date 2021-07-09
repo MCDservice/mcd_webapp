@@ -1,0 +1,44 @@
+{# include the template block: #}
+{% extends 'mcd/base.html' %}
+
+{% block body %}
+
+    {% if user_objects %}
+        <h3>List of all submitted images for analysis:</h3>
+        <ul class="list-group">
+{#       variable 'user_objects' is defined in views.py ... #}
+{#       ... class 'ListAllObjectsView', variable 'context_object_name' #}
+        {% for object in user_objects %}
+
+                <li class="list-group-item">
+                <div class="list-item-container">
+                    <div class="list-item-first label-grey">
+                        #{{ object.id }}
+                    </div>
+                    <div class="list-item label-grey-outline">
+                        {{ object.num_records }} records
+                    </div>
+                    <div class="list-item">
+                        <a href="{% url 'mcd:detailed_object' object.id %}">
+                            {{ object.title }}
+                        </a>
+                    </div>
+{#                    <div class="list-item-last">#}
+{#                        {% if photo.analysis_complete %}#}
+{#                            <span class="text-green glyphicon glyphicon-ok" aria-hidden="true"></span>#}
+{#                        {% else %}#}
+{#                            <span class="text-orange glyphicon glyphicon-refresh" aria-hidden="true"></span>#}
+{#                        {% endif %}#}
+{#                    </div>#}
+                </div>
+                </li>
+
+        {% endfor %}
+        </ul>
+    {% else %}
+        <h3>No Objects Created</h3>
+    {% endif %}
+
+{% endblock %}
+
+
