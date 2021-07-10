@@ -24,8 +24,13 @@
         <a href={% url 'mcd:add-scale' display_image.pk %}>
             <img onload="get_location()" id="interactive-img" ismap src="{{ display_image.input_photo.url }}">
         </a>
-        <div id="image-marker"></div>
+        <div id="image-marker-point-1"></div>
     </div>
+
+    <a href={% url 'mcd:add-scale-2' display_image.pk clicked_x clicked_y %}>
+        Confirm First Point
+    </a>
+
     </body>
 
 <script>
@@ -38,7 +43,7 @@
 
 function put_marker(from_left, from_top)
     {
-        with(document.getElementById('image-marker'))
+        with(document.getElementById('image-marker-point-1'))
         {
             style.left = from_left + "px";
             style.top = from_top + "px";

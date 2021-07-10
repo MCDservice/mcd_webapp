@@ -531,6 +531,37 @@ def add_scale(request, pk):
                                                   'clicked_x' : x,
                                                   'clicked_y' : y})
 
+def add_scale_2(request, pk, cx, cy):
+
+    display_image = MCD_Photo_Analysis.objects.get(pk=pk)
+
+    try:
+        (cx2,cy2)=list(request.GET.keys())[0].split(',')
+        # cx=request.GET.get('param1')
+        # cy=request.GET.get('param2')
+    # print(">>>> received GET request:", list(request.GET.keys())[0].split(','))
+    except:
+        cx2 = 0
+        cy2 = 0
+
+    # map was clicked at cx,cy coordinates
+    x=int(cx)
+    y=int(cy)
+
+    x2 = int(cx2)
+    y2 = int(cy2)
+
+
+
+    return render(request, "mcd/add_scale_2.html", {'display_image' : display_image,
+                                                    'clicked_x' : x,
+                                                    'clicked_y' : y,
+                                                    'clicked_x2': x2,
+                                                    'clicked_y2': y2,
+                                                    })
+
+
+
 def logout_view(request):
     print("logging out user: ", request.user.username)
     # use a POST request to log the user out:
@@ -589,3 +620,4 @@ class API_ListByUser_MCD_Photo_Analysis(APIView):
     # when user makes a POST request:
     def post(self):
         pass
+

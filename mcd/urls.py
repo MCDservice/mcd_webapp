@@ -63,6 +63,9 @@ urlpatterns = [
     # add scale
     url(r'^add-scale/(?P<pk>[0-9]+)/$', views.add_scale, name='add-scale'),
     url(r'^add-scale/(?P<pk>[0-9]+)/(?P<x_co>[0-9]+),(?P<y_co>[0-9]+)$', views.add_scale, name='add-scale'),
+    url(r'^add-scale-2/(?P<pk>[0-9]+)/(?P<cx>[0-9]+)/(?P<cy>[0-9]+)/$', views.add_scale_2, name='add-scale-2'),
+    # url(r'^add-scale-2/(?P<pk>[0-9]+)/(?P<cx>[0-9]+)/(?P<cy>[0-9]+)/(?P<x_co>[0-9]+),(?P<y_co>[0-9]+)$',
+    #     views.add_scale_2, name='add-scale-2'),
 
     url(r'^upload/submit$', views.submit_to_analysis, name='submit_to_analysis'),
     # url(r'^upload/submit$', views.submit_to_analysis, name='submit_to_analysis'),

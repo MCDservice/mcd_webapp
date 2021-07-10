@@ -158,12 +158,30 @@ body{
 }
 
 
-#image-marker{
+#image-marker-point-1{
     background: #4cb900;
     width: 10px;
     height: 10px;
     z-index: 10!important;
     position: absolute;
+}
+
+#image-marker-point-2{
+    background: #b93036;
+    width: 10px;
+    height: 10px;
+    z-index: 10!important;
+    position: absolute;
+}
+
+.line {
+  width: 100%;
+  color: black;
+  height: 1px;
+  background-color: black;
+  position: absolute;
+margin: 0 !important;
+    transform-origin: 0% 0%;
 }
 
 .label-grey{
