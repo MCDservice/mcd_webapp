@@ -11,6 +11,10 @@ body{
     margin-right: 30px;
 }
 
+.margin-right-100px{
+    margin-right: 100px;
+}
+
 .margin-top-5px{
     margin-top: 5px;
 }
@@ -109,6 +113,10 @@ body{
 
 .text-green{
     color: #4cb900;
+}
+
+.text-red{
+    color: #B93036;
 }
 
 .text-grey{
@@ -215,6 +223,12 @@ margin: 0 !important;
     align-content: center;
     text-align: justify;
     margin: auto;
+}
+
+.floating-wrapper
+{
+    display: flex;
+    margin-bottom: 50px;
 }
 
 .content-records{

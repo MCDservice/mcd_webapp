@@ -1,0 +1,243 @@
+{% extends 'mcd/base.html' %}
+{% block title %}
+    MCD | Upload
+{% endblock %}
+{% block body %}
+    <body onload="get_location('{{ point }}')">
+
+    <h1>Add two points to make a line, and specify the real length, to compute the image scale</h1>
+
+{% if point == 'r' %}
+    <p>
+        Currently changing <strong class="text-red">red</strong> marker
+    </p>
+{% else %}
+    <p>
+        Currently changing <strong class="text-green">green</strong> marker
+    </p>
+{% endif %}
+<div class="floating-wrapper">
+    <div class="margin-right-100px">
+        <div class="relative-wrapper">
+            <a href={% url 'mcd:add-scale-3' display_image.pk clicked_x clicked_y point %}>
+                <img id="interactive-img" ismap src="{{ display_image.input_photo.url }}">
+            </a>
+            <div id="image-marker-point-1"></div>
+            <div id="image-marker-point-2"></div>
+            <div class="line"></div>
+        </div>
+
+
+        {% if point == 'r' %}
+            <a class="btn btn-default" href="../../../../{{ display_image.pk }}/{{ clicked_x2 }}/{{ clicked_y2 }}/g/?{{ clicked_x }},{{ clicked_y }}">
+                Switch to change green marker
+            </a>
+        {% else %}
+            <a class="btn btn-default" href="../../../../{{ display_image.pk }}/{{ clicked_x2 }}/{{ clicked_y2}}/r/?{{ clicked_x }},{{ clicked_y }}">
+                Switch to change red marker
+            </a>
+        {% endif %}
+
+    </div>
+
+    <div>
+        {% if error_message %}
+            <p><strong>{{ error_message }}</strong></p>
+        {% elif success_message %}
+            <p><strong>{{ success_message }}</strong></p>
+        {% endif %}
+
+
+        <p>
+            Current Scale: {{ display_image.scale|floatformat:3 }} (1 px = {{ display_image.scale|floatformat:3 }} cm)
+        </p>
+
+        {% if point == 'r' %}
+            <div class="floating-wrapper">
+                Green Marker Coordinates:
+                {% if clicked_x %}
+                    x = <p class="label-grey" id="x_coord">{{ clicked_x }}</p>
+                {% endif %}
+                &nbsp;
+                {% if clicked_y %}
+                    y = <p class="label-grey" id="y_coord">{{ clicked_y }}</p>
+                {% endif %}
+            </div>
+
+            <div class="floating-wrapper">
+                Red Marker Coordinates:
+                {% if clicked_x2 %}
+                    x = <p class="label-grey" id="x_coord_2">{{ clicked_x2 }}</p>
+                {% endif %}
+                &nbsp;
+                {% if clicked_y2 %}
+                    y = <p class="label-grey" id="y_coord_2">{{ clicked_y2 }}</p>
+                {% endif %}
+            </div>
+
+        {% endif %}
+
+        {% if point == 'g' %}
+           <div class="floating-wrapper">
+                Green Marker Coordinates:
+               {% if clicked_x2 %}
+                    x = <p class="label-grey" id="x_coord_2">{{ clicked_x2 }}</p>
+                {% endif %}
+                &nbsp;
+                {% if clicked_y2 %}
+                    y = <p class="label-grey" id="y_coord_2">{{ clicked_y2 }}</p>
+                {% endif %}
+            </div>
+
+            <div class="floating-wrapper">
+                Red Marker Coordinates:
+                {% if clicked_x %}
+                    x = <p class="label-grey" id="x_coord">{{ clicked_x }}</p>
+                {% endif %}
+                &nbsp;
+                {% if clicked_y %}
+                    y = <p class="label-grey" id="y_coord">{{ clicked_y }}</p>
+                {% endif %}
+            </div>
+
+        {% endif %}
+
+    </div>
+</div>
+    <form class="form-horizontal" action="" method="post"
+      enctype="multipart/form-data">
+        {% csrf_token %}
+
+
+        <div class="form-group">
+            <p id="length-reveal">
+                Line width is x pixels
+            </p>
+            <label for="input_real">Enter the real length of the line in centimetres (cm)</label>
+            <input id="input_px"   name="input_px_length"   type="hidden" step=".01">
+            <input id="input_real" name="input_real_length" type="number" step=".01">
+
+            <div class="col-sm-offset-2 col-sm-10">
+                <button type="submit" class="btn btn-success">
+                    Submit
+                </button>
+            </div>
+        </div>
+
+    </form>
+
+
+
+
+
+
+
+
+{#    <button type="submit" href={% url 'mcd:add-scale-2' display_image.pk clicked_x clicked_y %}>#}
+{#        Confirm First Point#}
+{#    </button>#}
+
+    </body>
+
+<script>
+    function get_location(point)
+    {
+        {#alert(point);#}
+        x = document.getElementById('x_coord').innerHTML;
+        y = document.getElementById('y_coord').innerHTML;
+        x2 = document.getElementById('x_coord_2').innerHTML;
+        y2 = document.getElementById('y_coord_2').innerHTML;
+
+        {#document.getElementById('interactive-img').onload = put_marker2(x2, y2);#}
+        {#document.getElementById('interactive-img').onload = put_marker1(x, y);#}
+
+        if(point === 'r')
+        {
+            document.getElementById('interactive-img').onload = put_marker2(x2, y2);
+            document.getElementById('interactive-img').onload = put_marker1(x, y);
+        }
+
+        else if (point === 'g')
+        {
+            document.getElementById('interactive-img').onload = put_marker2(x, y);
+            document.getElementById('interactive-img').onload = put_marker1(x2, y2);
+        }
+    }
+
+function put_marker1(from_left, from_top)
+    {
+        with(document.getElementById('image-marker-point-1'))
+        {
+            style.left = from_left + "px";
+            style.top = from_top + "px";
+            style.display = "block";
+        }
+    }
+function put_marker2(from_left, from_top)
+    {
+        with(document.getElementById('image-marker-point-2'))
+        {
+            style.left = from_left + "px";
+            style.top = from_top + "px";
+            style.display = "block";
+        }
+    }
+
+function lineDistance(x, y, x0, y0){
+    return Math.sqrt((x -= x0) * x + (y -= y0) * y);
+};
+
+function drawLine(y1, x1, y2, x2, line)
+{
+  var angle = Math.atan2(x1 - x2, y1 - y2) * 180 / Math.PI;
+  var distance = lineDistance(y2, x2, y1, x1);
+
+  var length_label = document.getElementById('length-reveal');
+    length_label.innerText = "Line width is " + distance.toFixed(2) + " pixels";
+
+    var hidden_form = document.getElementById('input_px');
+    hidden_form.value = distance;
+
+    {#alert("Line width is " + distance + " pixels");#}
+    console.log("Line width is " + distance + " pixels");
+    {#console.log(distance);#}
+
+  // Set Angle
+  $(line).css('transform', 'rotate(' + angle + 'deg)');
+
+  // Set Width
+  $(line).css('width', distance + 'px');
+
+  // Set Position
+  $(line).css('position', 'absolute');
+  {#$(line).offset({top: Math.abs(y1), left: Math.abs(x1)});#}
+
+  {#$(line).offset({top: 10px, left: 10px});#}
+  $(line).css('top', x2 + 'px');
+  {#$(line).css('top', '0px');#}
+  $(line).css('left', y2 + 'px');
+  {#$(line).css('left', '0px');#}
+
+  {#if(y1 < y2)#}
+  {# {#}
+  {#  $(line).offset({top: Math.abs(parseInt(y1, 10)), left: Math.abs(parseInt(x1, 10))});#}
+  {# }#}
+  {#else#}
+  {# {#}
+  {#  $(line).offset({top: Math.abs(parseInt(y2, 10)), left: Math.abs(parseInt(x2, 10))});#}
+  {# }#}
+}
+
+setInterval(function() {
+  drawLine({{ clicked_x }}, {{ clicked_y }},
+           {{ clicked_x2 }}, {{ clicked_y2 }},
+            '.line');
+ }, 100);
+
+
+
+</script>
+
+
+{% endblock %}
+

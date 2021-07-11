@@ -560,7 +560,54 @@ def add_scale_2(request, pk, cx, cy):
                                                     'clicked_y2': y2,
                                                     })
 
+def add_scale_3(request, pk, cx, cy, point):
 
+    display_image = MCD_Photo_Analysis.objects.get(pk=pk)
+
+    try:
+        (cx2,cy2)=list(request.GET.keys())[0].split(',')
+        # cx=request.GET.get('param1')
+        # cy=request.GET.get('param2')
+    # print(">>>> received GET request:", list(request.GET.keys())[0].split(','))
+    except:
+        cx2 = 0
+        cy2 = 0
+
+    # map was clicked at cx,cy coordinates
+    x=int(cx)
+    y=int(cy)
+
+    x2 = int(cx2)
+    y2 = int(cy2)
+
+    # when user fills in the scale information, ...
+    # ... need to add that to database:
+    if request.POST:
+        print(">>> GOT POST form: ", request.POST.get('input_real_length'),
+                                     request.POST.get('input_px_length'))
+
+        real_length = float(request.POST.get('input_real_length'))
+        px_length   = float(request.POST.get('input_px_length'))
+
+        print("ratio: ", real_length/px_length)
+
+        display_image.scale = real_length/px_length
+        display_image.save()
+
+
+
+        # compute the real scale
+
+
+
+
+    return render(request, "mcd/add_scale_3.html", {'display_image' : display_image,
+                                                    'clicked_x' : x,
+                                                    'clicked_y' : y,
+                                                    'clicked_x2': x2,
+                                                    'clicked_y2': y2,
+                                                    'point'     : point
+                                                    })
 
 def logout_view(request):
     print("logging out user: ", request.user.username)

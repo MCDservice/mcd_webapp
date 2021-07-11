@@ -64,6 +64,7 @@ urlpatterns = [
     url(r'^add-scale/(?P<pk>[0-9]+)/$', views.add_scale, name='add-scale'),
     url(r'^add-scale/(?P<pk>[0-9]+)/(?P<x_co>[0-9]+),(?P<y_co>[0-9]+)$', views.add_scale, name='add-scale'),
     url(r'^add-scale-2/(?P<pk>[0-9]+)/(?P<cx>[0-9]+)/(?P<cy>[0-9]+)/$', views.add_scale_2, name='add-scale-2'),
+    url(r'^add-scale-3/(?P<pk>[0-9]+)/(?P<cx>[0-9]+)/(?P<cy>[0-9]+)/(?P<point>[\w]{1})/$', views.add_scale_3, name='add-scale-3'),
     # url(r'^add-scale-2/(?P<pk>[0-9]+)/(?P<cx>[0-9]+)/(?P<cy>[0-9]+)/(?P<x_co>[0-9]+),(?P<y_co>[0-9]+)$',
     #     views.add_scale_2, name='add-scale-2'),
 

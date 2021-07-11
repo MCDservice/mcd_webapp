@@ -66,6 +66,9 @@ class MCD_Photo_Analysis (models.Model):
     crack_length        = models.DecimalField(null=True, default=-1,
                                               max_digits=8, decimal_places=2)
 
+    scale               = models.DecimalField(null=True, default=1,
+                                              max_digits=8, decimal_places=2)
+
     datetime_taken          = models.DateTimeField(null=True)
     datetime_uploaded       = models.DateTimeField(null=True)
     datetime_analysed       = models.DateTimeField(null=True)
