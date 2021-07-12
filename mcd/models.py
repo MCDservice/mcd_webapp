@@ -18,7 +18,7 @@ class MCD_Users(models.Model):
     def __str__(self):
         return self.email
 
-class MCD_Object(models.Model):
+class MCD_Project(models.Model):
     uploaded_by_user_id = models.ForeignKey(User, on_delete=models.CASCADE)
     title               = models.CharField(max_length=100, null=False, default="Untitled Object")
     latitude            = models.FloatField(null=True, blank=True)
@@ -47,7 +47,7 @@ class MCD_Record(models.Model):
     """
     title = models.CharField(max_length=100, null=False, default="Untitled Record")
     uploaded_by_user_id = models.ForeignKey(User, on_delete=models.CASCADE)
-    object_id = models.ForeignKey(MCD_Object, default=1, on_delete=models.CASCADE)
+    project_id = models.ForeignKey(MCD_Project, default=1, on_delete=models.CASCADE)
 
     num_images = models.IntegerField(null=False, default=0)
 
@@ -55,11 +55,12 @@ class MCD_Record(models.Model):
 
 class MCD_Photo_Analysis (models.Model):
     uploaded_by_user_id = models.ForeignKey(User, on_delete=models.CASCADE)
-    object_id           = models.ForeignKey(MCD_Object, default=1, on_delete=models.CASCADE)
+    project_id           = models.ForeignKey(MCD_Project, default=1, on_delete=models.CASCADE)
     record_id           = models.ForeignKey(MCD_Record, null=True, blank=True, on_delete=models.CASCADE)
 
     title               = models.CharField(max_length=100, null=False, default="Untitled")
     input_photo         = models.FileField(null=False, blank=False)
+    overlay_photo       = models.FileField(null=True, blank=True)
     output_photo        = models.FileField(null=True, blank=True)
     analysis_complete   = models.BooleanField(null=False, default=False)
 

@@ -55,7 +55,7 @@
                 {% if user.is_authenticated %}
                     <ul class="nav navbar-nav">
                         <li class="">
-                            <a href="{% url 'mcd:object-list' %}">List Objects</a>
+                            <a href="{% url 'mcd:object-list' %}">List Projects</a>
                         </li>
                         <li class="">
                             <a href="{% url 'mcd:image-list' %}">List Images</a>
@@ -82,7 +82,7 @@
                                   <li>
                                       <a class="text-grey" href="{% url 'mcd:object-add' %}">
                                           <span class="glyphicon glyphicon-home" aria-hidden="true"></span>&nbsp
-                                          Add New Object
+                                          Add New Project
                                       </a>
                                   </li>
                                   <li>

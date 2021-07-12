@@ -97,34 +97,50 @@
                         <span class="glyphicon glyphicon-align-justify" aria-hidden="true"></span>&nbsp
                     </button>
                     <h1 class="text-abel">
-                         Record #{{ record.id }} | {{ record.title }}
-                        <p class="label-grey-outline margin-top-5px">
-                            Project: {{ record.object_id.title }} | Image Analysis ID: {{ display_image.pk }}
+                        Record #{{ record.id }} | {{ record.title }}
+                        &nbsp
+                        <a class="text-normal" href="{% url 'mcd:photo_analysis_detailed' display_image.id %}">
+                            <span class="glyphicon glyphicon-eye-open" aria-hidden="true"></span>&nbsp
+                        </a>
+                        <a class="text-normal" href="{% url 'mcd:update' display_image.id %}">
+                            <span class="glyphicon glyphicon-cog" aria-hidden="true"></span>&nbsp
+                        </a>
+                        <p class="label-grey-outline-small margin-top-5px">
+                            Project: {{ record.project_id.title }} | Image Analysis ID: {{ display_image.pk }}
                         </p>
                     </h1>
                 </div>
             </nav>
 
-            <h2>Input Image
-                <a class="label-grey text-normal" href="">
-                    {{ display_image.title }}
-                </a>
-                &nbsp
-                <a class="text-normal" href="{% url 'mcd:photo_analysis_detailed' display_image.id %}">
-                    <span class="glyphicon glyphicon-eye-open" aria-hidden="true"></span>&nbsp
-                </a>
-                <a class="text-normal" href="{% url 'mcd:update' display_image.id %}">
-                    <span class="glyphicon glyphicon-cog" aria-hidden="true"></span>&nbsp
-                </a>
-            </h2>
-            <img src="{{ display_image.input_photo.url }}">
+            <h2><b>OUTPUT | </b> Classified Masonry Crack Overlay:</h2>
+            <div class="img-container">
+                {% if display_image.overlay_photo %}
+                    <img class="img-scaling" width="1280px" height="720px" src="{{ display_image.overlay_photo.url }}">
+                {% endif %}
+            </div>
 
-            <h2>Output Image:</h2>
-            {% if display_image.output_photo %}
-                <img src="{{ display_image.output_photo.url }}">
-            {% endif %}
+            <div class="floating-wrapper">
+                <div>
+                    <h2>Input Image
+                        <a class="label-grey-small text-normal" href="">
+                            {{ display_image.title }}
+                        </a>
+                    </h2>
 
-            <div class="line"></div>
+                    <div class="img-container">
+                        <img class="img-scaling" width="640px" height="360px" src="{{ display_image.input_photo.url }}">
+                    </div>
+                </div>
+                <div>
+                    <h2>Output Image</h2>
+                    {% if display_image.output_photo %}
+                        <div class="img-container">
+                            <img class="img-scaling" width="640px" height="360px" src="{{ display_image.output_photo.url }}">
+                        </div>
+                    {% endif %}
+
+                </div>
+            </div>
 
         </div>
     </div>

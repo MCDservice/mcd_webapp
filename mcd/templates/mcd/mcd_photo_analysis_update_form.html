@@ -1,5 +1,5 @@
 {% extends 'mcd/base.html' %}
-{% block title %} MCD | Upload {% endblock %}
+{% block title %} MCD | Update {% endblock %}
 
 {% block body %}
 <div class="container-fluid">
@@ -10,13 +10,6 @@
                 <form class="form-horizontal" action="" method="post"
                  enctype="multipart/form-data">
                     {% csrf_token %}
-
-{#                    {% include 'mcd/form/form_template.html' %}#}
-                    {% if not object_exists %}
-                        <h3>WARNING:</h3>
-                        <p>No project currently exists to assign this new image to.</p>
-                        <p>Please create a project first (by clicking the '+') before uploading an image!</p>
-                    {% endif %}
 
                     {% for field in form %}
                         <div class="form-group">
@@ -47,23 +40,19 @@
                         </div>
                     {% endfor %}
 
-                    {% if not object_exists %}
-                        <div class="form-group">
-                            <div class="col-sm-offset-2 col-sm-10">
-                                <button disabled="true" type="submit" class="btn btn-success">
-                                    Submit
-                                </button>
-                            </div>
+                    <div class="form-group floating-wrapper">
+                        <div class="col-sm-offset-2 col-sm-10">
+                            <button type="submit" class="btn btn-success">
+                                Submit
+                            </button>
                         </div>
-                    {% else %}
-                        <div class="form-group">
-                            <div class="col-sm-offset-2 col-sm-10">
-                                <button type="submit" class="btn btn-success">
-                                    Submit
-                                </button>
-                            </div>
+
+                        <div class="col-sm-offset-2 col-sm-10">
+                            <button name="reanalyse" type="submit" class="btn btn-success">
+                                Reanalyse Photo
+                            </button>
                         </div>
-                    {% endif %}
+                    </div>
 
                 </form>
 

@@ -2,7 +2,7 @@ import datetime
 
 from django.contrib.auth.decorators import login_required
 from django.views import generic
-from mcd.models import MCD_Photo_Analysis, MCD_Object, MCD_Record
+from mcd.models import MCD_Photo_Analysis, MCD_Project, MCD_Record
 from django.shortcuts import render, \
     redirect, \
     get_object_or_404
@@ -104,7 +104,7 @@ class ListAllObjectsView(generic.ListView):
     # THE NAME OF 'template_name' MUST NOT BE CHANGED ...
     # ... as this is how Django finds the html template ...
     # ... for the index view here
-    template_name = 'mcd/list_objects.html'
+    template_name = 'mcd/list_projects.html'
 
     # change the name to refer to user photos
     # ... (in the template) as this:
@@ -116,16 +116,16 @@ class ListAllObjectsView(generic.ListView):
         # ...  mcd/index.html template too, with:
         # ...  {% if user.is_authenticated %} )
         if not self.request.user.is_authenticated:
-            return MCD_Object.objects.none()
+            return MCD_Project.objects.none()
 
         else:
             # get current user:
             user = self.request.user
             # filter out the objects that have been uploaded by the current user:
-            objects_per_user = MCD_Object.objects.filter(uploaded_by_user_id=user)\
+            objects_per_user = MCD_Project.objects.filter(uploaded_by_user_id=user)\
                                             .values_list('uploaded_by_user_id', flat=True).first()
             # return only the objects that match the current user logged in:
-            return MCD_Object.objects.filter(uploaded_by_user_id=objects_per_user)
+            return MCD_Project.objects.filter(uploaded_by_user_id=objects_per_user)
 
 
 
@@ -140,11 +140,11 @@ class DetailsView(generic.DetailView):
 
 
 class ObjectDetailsView(generic.DetailView):
-    model = MCD_Object
+    model = MCD_Project
     # change the name to refer to photo analysis
     # ... (in the template) as this:
-    context_object_name = 'object'
-    template_name = 'mcd/detailed_object.html'
+    context_object_name = 'project'
+    template_name = 'mcd/detailed_project.html'
 
     # current_object
 
@@ -154,13 +154,13 @@ class ObjectDetailsView(generic.DetailView):
         # get current object primary key (id):
         current_object = self.kwargs['pk']
         # filter out the objects that have been uploaded by the current user:
-        images_in_object = MCD_Photo_Analysis.objects.filter(object_id=current_object) \
-            .values_list('object_id', flat=True).first()
+        images_in_object = MCD_Photo_Analysis.objects.filter(project_id=current_object) \
+            .values_list('project_id', flat=True).first()
         # return only the objects that match the current user logged in:
-        # return MCD_Photo_Analysis.objects.filter(object_id=images_in_object)
+        # return MCD_Photo_Analysis.objects.filter(project_id=images_in_object)
 
         data = super().get_context_data(**kwargs)
-        data['images_of_object'] = MCD_Photo_Analysis.objects.filter(object_id=images_in_object)
+        data['images_of_object'] = MCD_Photo_Analysis.objects.filter(project_id=images_in_object)
         return data
     """
 
@@ -168,13 +168,13 @@ class ObjectDetailsView(generic.DetailView):
         # get current object primary key (id):
         current_object = self.kwargs['pk']
         # filter out the objects that have been uploaded by the current user:
-        records_in_object = MCD_Record.objects.filter(object_id=current_object) \
-            .values_list('object_id', flat=True).first()
+        records_in_project = MCD_Record.objects.filter(project_id=current_object) \
+            .values_list('project_id', flat=True).first()
         # return only the objects that match the current user logged in:
-        # return MCD_Photo_Analysis.objects.filter(object_id=images_in_object)
+        # return MCD_Photo_Analysis.objects.filter(project_id=images_in_object)
 
         data = super().get_context_data(**kwargs)
-        data['records_in_object'] = MCD_Record.objects.filter(object_id=records_in_object)
+        data['records_in_project'] = MCD_Record.objects.filter(project_id=records_in_project)
         return data
 
 
@@ -186,19 +186,19 @@ class ObjectDetailsView(generic.DetailView):
     #     # get current object primary key (id):
     #     current_object = self.kwargs['pk']
     #     # filter out the objects that have been uploaded by the current user:
-    #     images_in_object = MCD_Photo_Analysis.objects.filter(object_id=current_object) \
-    #         .values_list('object_id', flat=True).first()
+    #     images_in_object = MCD_Photo_Analysis.objects.filter(project_id=current_object) \
+    #         .values_list('project_id', flat=True).first()
     #     # return only the objects that match the current user logged in:
-    #     return MCD_Photo_Analysis.objects.filter(object_id=images_in_object)
+    #     return MCD_Photo_Analysis.objects.filter(project_id=images_in_object)
 
     # def get_queryset(self):
     #     # get current user:
-    #     current_object = super(MCD_Object, self)
+    #     current_object = super(MCD_Project, self)
     #     # filter out the images that are from current object:
-    #     images_in_object = MCD_Object.objects.filter(object_id=current_object.pk) \
+    #     images_in_object = MCD_Project.objects.filter(project_id=current_object.pk) \
     #         .values_list('uploaded_by_user_id', flat=True).first()
     #     # return only the objects that match the current user logged in:
-    #     return MCD_Object.objects.filter(object_id=images_in_object)
+    #     return MCD_Project.objects.filter(project_id=images_in_object)
 
 
 class RecordDetailsView(generic.DetailView):
@@ -217,7 +217,7 @@ class RecordDetailsView(generic.DetailView):
         image_ids_in_record = MCD_Photo_Analysis.objects.filter(record_id=current_record) \
             .values_list('record_id', flat=True).first()
         # return only the objects that match the current user logged in:
-        # return MCD_Photo_Analysis.objects.filter(object_id=images_in_object)
+        # return MCD_Photo_Analysis.objects.filter(project_id=images_in_object)
 
         images_in_record = MCD_Photo_Analysis.objects.filter(record_id=image_ids_in_record)
 
@@ -248,12 +248,17 @@ class EnqueuePhotoAnalysis(threading.Thread):
         threading.Thread.__init__(self)
 
     def run(self):
-        output_photo_url = analyse_photo(self.input_url.url, self.title)
+        # change field to say that it is currently processing:
+        t = MCD_Photo_Analysis.objects.get(id=self.db_pk)
+        t.analysis_complete = False
+        t.save()  # this will only that analysis is not complete
+
+        overlay_photo_url, output_photo_url = analyse_photo(self.input_url.url, self.title)
         print("photo analysed, posting to db index:", self.db_pk)
 
         # after the photo has been analysed ...
-        t = MCD_Photo_Analysis.objects.get(id=self.db_pk)
-        t.output_photo = output_photo_url  # change field
+        t.output_photo  = output_photo_url  # change field
+        t.overlay_photo = overlay_photo_url  # change field
         t.analysis_complete = True # change field
 
         t.datetime_analysed = datetime.datetime.now()
@@ -267,7 +272,7 @@ class PhotoAnalysisCreate(CreateView):
     model = MCD_Photo_Analysis
     template_name = 'mcd/mcd_photo_analysis_form.html'
     # what attributes do we allow the user to input?
-    # fields = ['object_id', 'input_photo']
+    # fields = ['project_id', 'input_photo']
 
 
     form_class = MCD_Photo_AnalysisFORM
@@ -280,20 +285,20 @@ class PhotoAnalysisCreate(CreateView):
         # by default - no data (context = None)
         form = self.form_class(None)
 
-        objects_per_user = MCD_Object.objects.filter(uploaded_by_user_id=request.user) \
+        objects_per_user = MCD_Project.objects.filter(uploaded_by_user_id=request.user) \
             .values_list('uploaded_by_user_id', flat=True).first()
         # return only the objects that match the current user logged in:
         # print(form.fields)
-        form.fields['object_id'].queryset=MCD_Object.objects.filter(uploaded_by_user_id=objects_per_user)
-        if not form.fields['object_id'].queryset:
-            form.fields['object_id'].disabled   = True
+        form.fields['project_id'].queryset=MCD_Project.objects.filter(uploaded_by_user_id=objects_per_user)
+        if not form.fields['project_id'].queryset:
+            form.fields['project_id'].disabled   = True
             form.fields['record_id'].disabled   = True
             form.fields['title'].disabled       = True
             form.fields['input_photo'].disabled = True
-        # print(" queryset >>> ", form.fields['object_id'].queryset.exists())
+        # print(" queryset >>> ", form.fields['project_id'].queryset.exists())
 
         return render(request, self.template_name, {'form' : form,
-                                                    'object_exists' : form.fields['object_id'].queryset.exists() })
+                                                    'object_exists' : form.fields['project_id'].queryset.exists()})
 
     def form_valid(self, form):
         # get the uploaded photo name:
@@ -310,7 +315,7 @@ class PhotoAnalysisCreate(CreateView):
             print("===> debugging worked - 'record_id' instance not set")
             mcd_record = MCD_Record(title=uploaded_filename+" Record",
                                     uploaded_by_user_id=self.request.user,
-                                    object_id=form.instance.object_id)
+                                    project_id=form.instance.project_id)
 
             # compute how many records are uploaded in total in the object:
             # (NOTE - +1 added since the new record is not yet saved to database ...
@@ -337,7 +342,7 @@ class PhotoAnalysisCreate(CreateView):
             mcd_record.save()
 
         # compute how many records are uploaded in total in the object:
-        parent_object = MCD_Object.objects.get(pk=form.instance.object_id.pk)
+        parent_object = MCD_Project.objects.get(pk=form.instance.project_id.pk)
         # print("> > > ", parent_object.mcd_photo_analysis_set.count())
         # for numbered_object in num_images:
         # print("> > >", parent_object.title, parent_object.number_of_images)
@@ -361,12 +366,12 @@ class PhotoAnalysisCreate(CreateView):
 
         # update the number of records of an object:
         from django.db.models import Count
-        # num_images = MCD_Object.objects.annotate(number_of_images=Count('mcd_photo_analysis'))  # annotate the queryset
-        num_images = MCD_Object.objects.annotate(number_of_images=Count('mcd_record'))  # annotate the queryset
+        # num_images = MCD_Project.objects.annotate(number_of_images=Count('mcd_photo_analysis'))  # annotate the queryset
+        num_images = MCD_Project.objects.annotate(number_of_images=Count('mcd_record'))  # annotate the queryset
 
         print(">>> num_images", num_images)
 
-        parent_object = MCD_Object.objects.get(pk=form.instance.object_id.pk)
+        parent_object = MCD_Project.objects.get(pk=form.instance.project_id.pk)
         print("> > > ", parent_object.mcd_photo_analysis_set.count())
         # for numbered_object in num_images:
         # print("> > >", parent_object.title, parent_object.number_of_images)
@@ -385,10 +390,36 @@ class PhotoAnalysisCreate(CreateView):
 class PhotoAnalysisUpdate(UpdateView):
     # database model we will allow the user to edit/fill-in
     model = MCD_Photo_Analysis
+    template_name = 'mcd/mcd_photo_analysis_update_form.html'
 
     # what attributes do we allow the user to input?
-    fields = ['input_photo', 'output_photo']
+    fields = ['input_photo']
 
+    # def form_valid(self, form):
+    #     print("form filled in", form.instance.reanalyse)
+    #     return super(PhotoAnalysisUpdate, self).form_valid(form)
+
+    def post(self, request, pk):
+        print("recv POST", pk)
+        # form = self.form_class(None)
+
+        current_image = MCD_Photo_Analysis.objects.get(pk=pk)
+
+        print("current form:", current_image.title)
+        print(current_image.uploaded_by_user_id)
+        print(current_image.input_photo)
+        print(current_image.output_photo)
+        print(current_image.analysis_complete)
+
+        EnqueuePhotoAnalysis(pk,
+                             current_image.title,
+                             current_image.uploaded_by_user_id,
+                             current_image.input_photo,
+                             current_image.output_photo,
+                             current_image.analysis_complete).start()
+
+        # return redirect('mcd:index')
+        return redirect('mcd:detailed_record_image_pk', current_image.record_id.pk, pk)
 
 class PhotoAnalysisDelete(DeleteView):
     # database model we will allow the user to edit/fill-in
@@ -397,10 +428,10 @@ class PhotoAnalysisDelete(DeleteView):
     success_url = reverse_lazy('mcd:index')
 
 
-# --------------------------- MCD_Object -------------------------------- #
+# --------------------------- MCD_Project -------------------------------- #
 class ObjectCreate(CreateView):
     # database model we will allow the user to edit/fill-in
-    model = MCD_Object
+    model = MCD_Project
 
     # what attributes do we allow the user to input?
     # fields = ['title', ]

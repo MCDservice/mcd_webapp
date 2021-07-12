@@ -1,3 +1,4 @@
 .idea/
 db_new.sqlite3
 media/
+*.pyc

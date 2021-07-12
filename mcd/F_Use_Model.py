@@ -37,10 +37,23 @@ def analyse_photo(Image_Path5, Image_Name):
 
 
     # Model_Path5 = "C://+ BACKUP//PROGRAM DATA//PYTHON//CNN - Semantic Segmentation\Output//+ Tests//Test2//DLV3PLUS//Loss5 (BCE)//Blocks2_198_epoch_97_val_F1_score_0.960.h5"
-    Model_Path5 = "C://Users//Dom//Documents//3-Year//2021-Internship//crack_detection_CNN_masonry//output//weights//crack_detection_44072_epoch_10_F1_score_dil_0.747.h5"
+    # old model
+    # Model_Path5 = "C://Users//Dom//Documents//3-Year//2021-Internship//" \
+    #               "crack_detection_CNN_masonry//output//weights//" \
+    #               "crack_detection_44072_epoch_10_F1_score_dil_0.747.h5"
 
-    # JModel_Path5 = ""
-    JModel_Path5 = "C://Users//Dom//Documents//3-Year//2021-Internship//crack_detection_CNN_masonry//output//model_json//crack_detection_44072.json"
+    # new model:
+    Model_Path5 = "C://Users//Dom//Documents//3-Year//2021-Internship//" \
+                  "pretrained-model//model for crack detection//" \
+                  "142_epoch_45_f1_m_dil_0.796.h5"
+    #
+    # JModel_Path5 = "C://Users//Dom//Documents//3-Year//2021-Internship//" \
+    #                "crack_detection_CNN_masonry//output//model_json//" \
+    #                "crack_detection_44072.json"
+
+    JModel_Path5 = "C://Users//Dom//Documents//3-Year//2021-Internship//" \
+                  "pretrained-model//model for crack detection//" \
+                  "my_dataset_VGG16_FCN_142.json"
 
     # Output_Path5 = "Output//Images"
     # Output_Path5 = "C://Users//Dom//Documents//3-Year//2021-Internship//crack_detection_CNN_masonry//output//predictions//"
@@ -199,8 +212,8 @@ def analyse_photo(Image_Path5, Image_Name):
     print("output predictions path: ", Predictions_Path)
     # CreatePath(Predictions_Path)
 
-    Mask_Path = os.path.join(Predictions_Path, Image_Name + " (CNN)" + ".png")
-    BinMask_Path = os.path.join(Predictions_Path, Image_Name + ".png")
+    Mask_Path = os.path.join(Predictions_Path, Image_Name + "-output" + ".png")
+    BinMask_Path = os.path.join(Predictions_Path, Image_Name + "-output-binarised.png")
 
     #-----------------------------------------------------------------------------
 
@@ -333,34 +346,36 @@ def analyse_photo(Image_Path5, Image_Name):
     fig = plt.figure(title1)
     fig.tight_layout()
     # Subplot #1
-    ax1 = fig.add_subplot(2,2,1)
-    ax1.imshow(SourceRGB)
-    ax1.title.set_text("Image")
-    ax1.axis('off')
+    # ax1 = fig.add_subplot(2,2,1)
+    # ax1.imshow(SourceRGB)
+    # ax1.title.set_text("Image")
+    # ax1.axis('off')
     # Subplot #2
     ax2 = fig.add_subplot(2,2,2)
     ax2.imshow(SourceRGB)
     ax2.imshow(TrMask, cmap='brg', alpha=0.35)
-    ax2.title.set_text("Overlay")
+    # ax2.title.set_text("Overlay")
     ax2.axis('off')
     # Subplot #3
-    ax3 = fig.add_subplot(2,2,3)
-    ax3.imshow(Mask, cmap='gray')
-    ax3.title.set_text("CNN Output")
-    ax3.axes.xaxis.set_visible(False)
-    ax3.axes.yaxis.set_visible(False)
+    # ax3 = fig.add_subplot(2,2,3)
+    # ax3.imshow(Mask, cmap='gray')
+    # ax3.title.set_text("CNN Output")
+    # ax3.axes.xaxis.set_visible(False)
+    # ax3.axes.yaxis.set_visible(False)
     # Subplot #4
-    ax4 = fig.add_subplot(2,2,4)
-    ax4.imshow(BinMask, cmap='gray')
-    ax4.title.set_text("Binarised (t= " + str(Bin_Threshold) + ")")
-    ax4.axes.xaxis.set_visible(False)
-    ax4.axes.yaxis.set_visible(False)
-    # Show plot
-    plt.show()
+    # ax4 = fig.add_subplot(2,2,4)
+    # ax4.imshow(BinMask, cmap='gray')
+    # ax4.title.set_text("Binarised (t= " + str(Bin_Threshold) + ")")
+    # ax4.axes.xaxis.set_visible(False)
+    # ax4.axes.yaxis.set_visible(False)
+
     # Store plt image
-    Figure_Path = os.path.join(Predictions_Path, Image_Name + "(Fig).png")
+    Figure_Path = os.path.join(Predictions_Path, Image_Name + "-overlay.png")
     #plt.savefig(Figure_Path, dpi=200, bbox_inches = "tight", pad_inches=0.05, constrained_layout=True)
     plt.savefig(Figure_Path, dpi=200, bbox_inches = "tight")
+
+    # Show plot (after it has been saved)
+    plt.show()
 
 
     # Store cv2 image
@@ -390,8 +405,12 @@ def analyse_photo(Image_Path5, Image_Name):
     print("[INFO] Data Saving Finished - T: " \
           + str(round(end-start,3)) + "s -> " + str(round(end-start0,3)) + "s")
 
-    return "/crack_detection_44072_epoch_10_F1_score_dil_0.747/"+ \
-           Image_Name + ".png"
+    # return "/crack_detection_44072_epoch_10_F1_score_dil_0.747/"+ \
+    #        Image_Name + ".png"
+    # return "/142_epoch_45_f1_m_dil_0.796/"+ \
+    #        Image_Name + ".png"
+
+    return Figure_Path, BinMask_Path
 
 
     #=============================================================================

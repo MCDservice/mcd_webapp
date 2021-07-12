@@ -1,31 +1,32 @@
 {# include the template block: #}
 {% extends 'mcd/base.html' %}
 {% block title %}
-    MCD | {{ object.title }}
+    MCD | {{ project.title }}
 {% endblock %}
 {% block body %}
 {#    <h1>{{ page_title }}</h1>#}
-    <h1>Object #'{{ object.id }}' | '{{ object.title }}'</h1>
-    Number of images in this object: {{ object.num_images }}
+    <h1>Project <strong class="label-grey-outline">{{ project.title }}</strong> |
+        <strong class="label-grey">ID #{{ project.id }}</strong></h1>
+    Number of images in this project: {{ project.num_images }}
         <ul class="list-group">
-        {% for photo in records_in_object %}
+        {% for record in records_in_project %}
 
                 <li class="list-group-item">
                 <div class="list-item-container">
                     <div class="list-item-first label-grey">
-                        #{{ photo.id }}
+                        #{{ record.id }}
                     </div>
                     <div class="list-item label-grey-outline">
-                        {{ photo.num_images }} images
+                        {{ record.num_images }} images
                     </div>
                     <div class="list-item">
-{#                        <a href="{% url 'mcd:photo_analysis_detailed' photo.id %}">#}
-                        <a href="{% url 'mcd:detailed_record' photo.id %}">
-                            {{ photo.title }}
+{#                        <a href="{% url 'mcd:record_analysis_detailed' record.id %}">#}
+                        <a href="{% url 'mcd:detailed_record' record.id %}">
+                            {{ record.title }}
                         </a>
                     </div>
                     <div class="list-item-last">
-                        {% if photo.analysis_complete %}
+                        {% if record.analysis_complete %}
                             <span class="text-green glyphicon glyphicon-ok" aria-hidden="true"></span>
                         {% else %}
                             <span class="text-orange glyphicon glyphicon-refresh" aria-hidden="true"></span>
