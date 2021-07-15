@@ -259,7 +259,7 @@ def analyse_photo(Image_Path5, Image_Name):
     # Load image
     # Source = cv2.imread(Image_Path)
     # Image = np.copy(Source)
-
+    print(">>> Image_Path5:", Image_Path5)
     Source = url_to_image(Image_Path5)
     Image = np.copy(Source)
 

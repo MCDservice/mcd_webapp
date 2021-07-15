@@ -62,13 +62,32 @@
 
                         <div class="list-item-sidebar text-sidebar hideable">
                            <a href="{% url 'mcd:detailed_record_image_pk' record.id photo.id %}">
+                                {% load index_templatetag %}
                                 {{ photo.datetime_uploaded }}
+                                {% if crack_len_cm|index:forloop.counter0 > 0 %}
+                                    |
+                                    {{ crack_len_cm|index:forloop.counter0 }}
+                                    {% if display_cm|index:forloop.counter0 == 1 %}
+                                        cm
+                                    {% else %}
+                                        px
+                                    {% endif %}
+                                {% endif %}
                             </a>
                         </div>
 
                         <div class="list-item-sidebar text-sidebar text-small showable hidden">
                            <a href="{% url 'mcd:detailed_record_image_pk' record.id photo.id %}">
                                 {{ photo.datetime_uploaded |date:"M d, Y" }}
+                                {% load index_templatetag %}
+                                {% if crack_len_cm|index:forloop.counter0 > 0 %}
+                                    {{ crack_len_cm|index:forloop.counter0 }}
+                                    {% if display_cm|index:forloop.counter0 == 1 %}
+                                        cm
+                                    {% else %}
+                                        px
+                                    {% endif %}
+                                {% endif %}
                             </a>
                         </div>
 

@@ -18,13 +18,16 @@
 {% endif %}
 <div class="floating-wrapper">
     <div class="margin-right-100px">
-        <div class="relative-wrapper">
-            <a href={% url 'mcd:add-scale-3' display_image.pk clicked_x clicked_y point %}>
-                <img id="interactive-img" ismap src="{{ display_image.input_photo.url }}">
-            </a>
-            <div id="image-marker-point-1"></div>
-            <div id="image-marker-point-2"></div>
-            <div class="line"></div>
+
+        <div class="img-container">
+            <div class="relative-wrapper">
+                <a href={% url 'mcd:add-scale-3' display_image.pk clicked_x clicked_y point %}>
+                    <img class="img-scaling" width="640px" height="360px" id="interactive-img" ismap src="{{ display_image.input_photo.url }}">
+                </a>
+                <div id="image-marker-point-1"></div>
+                <div id="image-marker-point-2"></div>
+                <div class="line"></div>
+            </div>
         </div>
 
 
@@ -56,22 +59,22 @@
             <div class="floating-wrapper">
                 Green Marker Coordinates:
                 {% if clicked_x %}
-                    x = <p class="label-grey" id="x_coord">{{ clicked_x }}</p>
+                    <p>x <strong class="label-grey" id="x_coord">{{ clicked_x }}</strong></p>
                 {% endif %}
                 &nbsp;
                 {% if clicked_y %}
-                    y = <p class="label-grey" id="y_coord">{{ clicked_y }}</p>
+                    <p>y <strong class="label-grey" id="y_coord">{{ clicked_y }}</strong></p>
                 {% endif %}
             </div>
 
             <div class="floating-wrapper">
                 Red Marker Coordinates:
                 {% if clicked_x2 %}
-                    x = <p class="label-grey" id="x_coord_2">{{ clicked_x2 }}</p>
+                    <p>x <strong class="label-grey" id="x_coord_2">{{ clicked_x2 }}</strong></p>
                 {% endif %}
                 &nbsp;
                 {% if clicked_y2 %}
-                    y = <p class="label-grey" id="y_coord_2">{{ clicked_y2 }}</p>
+                    <p>y <strong class="label-grey" id="y_coord_2">{{ clicked_y2 }}</strong></p>
                 {% endif %}
             </div>
 
@@ -80,23 +83,23 @@
         {% if point == 'g' %}
            <div class="floating-wrapper">
                 Green Marker Coordinates:
-               {% if clicked_x2 %}
-                    x = <p class="label-grey" id="x_coord_2">{{ clicked_x2 }}</p>
+                {% if clicked_x2 %}
+                    <p>x <strong class="label-grey" id="x_coord_2">{{ clicked_x2 }}</strong></p>
                 {% endif %}
                 &nbsp;
                 {% if clicked_y2 %}
-                    y = <p class="label-grey" id="y_coord_2">{{ clicked_y2 }}</p>
+                    <p>y <strong class="label-grey" id="y_coord_2">{{ clicked_y2 }}</strong></p>
                 {% endif %}
             </div>
 
             <div class="floating-wrapper">
                 Red Marker Coordinates:
                 {% if clicked_x %}
-                    x = <p class="label-grey" id="x_coord">{{ clicked_x }}</p>
+                    <p>x <strong class="label-grey" id="x_coord">{{ clicked_x }}</strong></p>
                 {% endif %}
                 &nbsp;
                 {% if clicked_y %}
-                    y = <p class="label-grey" id="y_coord">{{ clicked_y }}</p>
+                    <p>y <strong class="label-grey" id="y_coord">{{ clicked_y }}</strong></p>
                 {% endif %}
             </div>
 
@@ -183,30 +186,64 @@ function put_marker2(from_left, from_top)
         }
     }
 
-function lineDistance(x, y, x0, y0){
-    return Math.sqrt((x -= x0) * x + (y -= y0) * y);
+function lineDistance(x, y, x0, y0, width_scaling, height_scaling){
+    {#return Math.sqrt((x -= x0) * x * height_scaling*height_scaling*width_scaling*width_scaling +#}
+    {#                 (y -= y0) * y * width_scaling*width_scaling* height_scaling*height_scaling );#}
+
+    var x_len = Math.abs(x - x0) * height_scaling;
+    var y_len = Math.abs(y - y0) * width_scaling;
+
+    return Math.sqrt(x_len*x_len + y_len*y_len);
+
 };
+
+function getContainedSize(img)
+{
+  var ratio = img.naturalWidth/img.naturalHeight;
+  var width = img.height*ratio;
+  var height = img.height;
+  if (width > img.width)
+  {
+    width = img.width;
+    height = img.width/ratio
+  }
+  return [width, height]
+}
 
 function drawLine(y1, x1, y2, x2, line)
 {
-  var angle = Math.atan2(x1 - x2, y1 - y2) * 180 / Math.PI;
-  var distance = lineDistance(y2, x2, y1, x1);
+    var wall_img    = document.getElementById('interactive-img');
+    var width_ratio = wall_img.naturalWidth / getContainedSize(wall_img)[0];
+    var height_ratio = wall_img.naturalHeight / getContainedSize(wall_img)[1];
 
-  var length_label = document.getElementById('length-reveal');
-    length_label.innerText = "Line width is " + distance.toFixed(2) + " pixels";
+    {#var angle = Math.atan2(width_ratio * (x1 - x2), height_ratio * (y1 - y2)) * 180 / Math.PI;#}
+    var angle = Math.atan2((x1 - x2), (y1 - y2)) * 180 / Math.PI;
+    {#var distance = lineDistance(y2, x2, y1, x1, width_ratio, height_ratio);#}
+    var display_distance = lineDistance(x2, y2, x1, y1, width_ratio, height_ratio);
+    var draw_line_distance = lineDistance(x2, y2, x1, y1, 1, 1);
+
+    var length_label = document.getElementById('length-reveal');
+
+    {#var img_scaling = wall_img.naturalWidth;#}
+
+
+    length_label.innerText = "Line width is " + display_distance.toFixed(2) + " pixels " +
+                             "\nOriginal Image size: " + wall_img.naturalWidth + "x" + wall_img.naturalHeight +
+                             "\nDisplay resolution:" + getContainedSize(wall_img)[0] + "x" + getContainedSize(wall_img)[1] +
+                             ", scaling: " + width_ratio.toFixed(2) + " / " + height_ratio.toFixed(2);
 
     var hidden_form = document.getElementById('input_px');
-    hidden_form.value = distance;
+    hidden_form.value = display_distance ;
 
     {#alert("Line width is " + distance + " pixels");#}
-    console.log("Line width is " + distance + " pixels");
+    console.log("Line width is " + display_distance  + " pixels");
     {#console.log(distance);#}
 
   // Set Angle
   $(line).css('transform', 'rotate(' + angle + 'deg)');
 
   // Set Width
-  $(line).css('width', distance + 'px');
+  $(line).css('width', draw_line_distance + 'px');
 
   // Set Position
   $(line).css('position', 'absolute');

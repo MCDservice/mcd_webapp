@@ -51,9 +51,9 @@ urlpatterns = [
     # [invoked by clicking ' + Upload Image for Analysis ']
     url(r'^upload/$', login_required(login_url="/mcd/login")
                       (views.PhotoAnalysisCreate.as_view()), name='upload'),
-    # mcd/object-add
-    url(r'^object-add/$', login_required(login_url="/mcd/login")
-                      (views.ObjectCreate.as_view()), name='object-add'),
+    # mcd/project-add
+    url(r'^project-add/$', login_required(login_url="/mcd/login")
+                      (views.ObjectCreate.as_view()), name='project-add'),
 
 
     # mcd/update/pk

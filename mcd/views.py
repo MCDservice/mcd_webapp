@@ -1,4 +1,5 @@
 import datetime
+import pandas as pd
 
 from django.contrib.auth.decorators import login_required
 from django.views import generic
@@ -24,7 +25,8 @@ from rest_framework import status
 from .serializers import MCD_Photo_AnalysisSerializer
 
 import threading
-from .F_Use_Model import analyse_photo
+# from .F_Use_Model import analyse_photo
+from .P7_Use_Model import analyse_photo
 
 
 # user management:
@@ -221,6 +223,16 @@ class RecordDetailsView(generic.DetailView):
 
         images_in_record = MCD_Photo_Analysis.objects.filter(record_id=image_ids_in_record)
 
+        biggest_crack_length_list = []
+        display_cm_list = []
+        epsilon = 0.0001
+        for i, image in enumerate(images_in_record):
+            biggest_crack_length_list.append(round(image.scale * image.crack_length,2))
+            if abs(float(image.scale) - 1.0) < epsilon:
+                display_cm_list.append(0)
+            else:
+                display_cm_list.append(1)
+
         try:
             display_image = MCD_Photo_Analysis.objects.get(pk=self.kwargs['image_pk'])
         except:
@@ -229,6 +241,8 @@ class RecordDetailsView(generic.DetailView):
         data = super().get_context_data(**kwargs)
         data['images_of_record'] = images_in_record.reverse()
         data['display_image'] = display_image
+        data['display_cm']   = display_cm_list
+        data['crack_len_cm'] = biggest_crack_length_list
         return data
 
 
@@ -253,8 +267,16 @@ class EnqueuePhotoAnalysis(threading.Thread):
         t.analysis_complete = False
         t.save()  # this will only that analysis is not complete
 
-        overlay_photo_url, output_photo_url = analyse_photo(self.input_url.url, self.title)
+        overlay_photo_url, \
+        output_photo_url,\
+        crack_len_url    = analyse_photo(self.input_url.url, self.title)
+
+        print("crack_len_url", crack_len_url)
         print("photo analysed, posting to db index:", self.db_pk)
+
+        # get biggest crack length:
+        sizes = pd.read_csv(crack_len_url)
+        t.crack_length = float(sizes["Length (pxls)"].max())
 
         # after the photo has been analysed ...
         t.output_photo  = output_photo_url  # change field
@@ -393,11 +415,19 @@ class PhotoAnalysisUpdate(UpdateView):
     template_name = 'mcd/mcd_photo_analysis_update_form.html'
 
     # what attributes do we allow the user to input?
-    fields = ['input_photo']
+    fields = ['input_photo', 'project_id', 'record_id', 'scale']
 
     # def form_valid(self, form):
     #     print("form filled in", form.instance.reanalyse)
     #     return super(PhotoAnalysisUpdate, self).form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        # get current object primary key (id):
+        current_object = self.kwargs['pk']
+
+        data = super().get_context_data(**kwargs)
+        data['current_id'] = int(current_object)
+        return data
 
     def post(self, request, pk):
         print("recv POST", pk)
@@ -420,6 +450,7 @@ class PhotoAnalysisUpdate(UpdateView):
 
         # return redirect('mcd:index')
         return redirect('mcd:detailed_record_image_pk', current_image.record_id.pk, pk)
+
 
 class PhotoAnalysisDelete(DeleteView):
     # database model we will allow the user to edit/fill-in

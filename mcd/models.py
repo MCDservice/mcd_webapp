@@ -51,6 +51,10 @@ class MCD_Record(models.Model):
 
     num_images = models.IntegerField(null=False, default=0)
 
+    def __str__(self):
+        return "(user: " + str(self.uploaded_by_user_id) + \
+               ") | " + str(self.title)
+
 
 
 class MCD_Photo_Analysis (models.Model):

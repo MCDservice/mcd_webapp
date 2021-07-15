@@ -28,17 +28,27 @@
                                 {{ field }}
                             </div>
 
-                            {% if field.html_name == "object_id" %}
+                            {% if field.html_name == "project_id" %}
                             <div class="col-sm-10">
-                              <a href="{% url 'mcd:object-add' %}">
+                              <a href="{% url 'mcd:project-add' %}">
                                   <span class="glyphicon glyphicon-plus-sign" aria-hidden="true"></span>&nbsp
-                                  Add New Object
+                                  Add New Project
                               </a>
                             </div>
                             {% endif %}
 
+                            {% if field.html_name == "scale" %}
+                                <div class="col-sm-10">
+                                  <a href="../add-scale-3/{{ current_id }}/1/1/g/?11,11">
+                                      <span class="glyphicon glyphicon-resize-horizontal" aria-hidden="true"></span>&nbsp
+                                      Update Scale Interactively
+                                  </a>
+                                </div>
+                            {% endif %}
+
                         </div>
                     {% endfor %}
+
 
                     <div class="form-group floating-wrapper">
                         <div class="col-sm-offset-2 col-sm-10">
