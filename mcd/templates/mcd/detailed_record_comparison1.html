@@ -1,0 +1,29 @@
+{% extends 'mcd/detailed_record.html' %}
+{% block comparison_content %}
+    <div class="floating-wrapper">
+    <div>
+        <h2>Input Image
+            <a class="label-grey-small text-normal" href="">
+                {{ display_image.title }}
+            </a>
+        </h2>
+
+        <div class="img-container">
+            <img class="img-scaling" width="640px" height="360px" src="{{ display_image.overlay_photo.url }}">
+        </div>
+    </div>
+    <div>
+        <h2>
+            Output Image
+            <a class="label-grey-small text-normal" href="">
+                {{ display_image_2.title }}
+            </a>
+        </h2>
+        {% if display_image.output_photo %}
+            <div class="img-container">
+                <img class="img-scaling" width="640px" height="360px" src="{{ display_image_2.overlay_photo.url }}">
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

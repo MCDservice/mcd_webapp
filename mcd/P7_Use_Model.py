@@ -865,7 +865,7 @@ def analyse_photo(Image_Path, Image_Name):
         # Save segmentation properties
         if Evaluate_Metrics==True:
             crack_length_path = os.path.join(AllPredictions_Path,'Sizes.csv')
-            url_dict["crack_len_csv"] = crack_length_path #.split('\\', 1)[1]
+            url_dict["crack_len_csv"] = crack_length_path.split('\\', 1)[1]
             Df_Sizes.to_csv(crack_length_path, index=False)
     else:
         print("[INFO] Output not saved")
@@ -886,7 +886,8 @@ def analyse_photo(Image_Path, Image_Name):
 
     return url_dict["Overlay"], \
            url_dict["Binarised (t=" + str(Bin_Threshold) + ")"], \
-           url_dict["crack_len_csv"]
+           url_dict["crack_len_csv"], \
+           url_dict["Final Watershed"]
 
     #=============================================================================
     #                             END PROGRAM

@@ -42,6 +42,10 @@ urlpatterns = [
     url(r'^record/(?P<pk>[0-9]+)/image-(?P<image_pk>[0-9]+)/$', views.RecordDetailsView.as_view(),
         name='detailed_record_image_pk'),
 
+    # /mcd/object/ID/ (comparing two images in the detailed view of the records)
+    url(r'^record/(?P<pk>[0-9]+)/(?P<comparison>[\w\-]+)/(?P<image_pk1>[0-9]+)/(?P<image_pk2>[0-9]+)/$', views.RecordComparison1View.as_view(),
+        name='detailed_record_compare'),
+
     # url(r'^upload/$', views.upload_to_analysis, name='upload'),
     url(r'^register/$', views.UserFormView.as_view(), name='register'),
     url(r'^login/$',  views.login_view, name='login'),

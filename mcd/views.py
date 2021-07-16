@@ -1,5 +1,6 @@
 import datetime
 import pandas as pd
+import numpy as np
 
 from django.contrib.auth.decorators import login_required
 from django.views import generic
@@ -36,6 +37,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.views.generic import View
 from .forms import UserForm, MCD_Photo_AnalysisFORM
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
+from django.conf import settings as conf_settings
 
 # @login_required
 class IndexView(generic.ListView):
@@ -202,6 +204,89 @@ class ObjectDetailsView(generic.DetailView):
     #     # return only the objects that match the current user logged in:
     #     return MCD_Project.objects.filter(project_id=images_in_object)
 
+class RecordComparison1View(generic.DetailView):
+    model = MCD_Record
+    # change the name to refer to photo analysis
+    # ... (in the template) as this:
+    context_object_name = 'record'
+    template_name = 'mcd/detailed_record_comparison1.html'
+
+    # current_object
+
+    def get_context_data(self, **kwargs):
+        # get current object primary key (id):
+        current_record = self.kwargs['pk']
+        # filter out the objects that have been uploaded by the current user:
+        image_ids_in_record = MCD_Photo_Analysis.objects.filter(record_id=current_record) \
+            .values_list('record_id', flat=True).first()
+        # return only the objects that match the current user logged in:
+        # return MCD_Photo_Analysis.objects.filter(project_id=images_in_object)
+
+        images_in_record = MCD_Photo_Analysis.objects.filter(record_id=image_ids_in_record)
+
+        biggest_crack_length_list = []
+        display_cm_list = []
+        epsilon = 0.0001
+        for i, image in enumerate(images_in_record):
+            biggest_crack_length_list.append(round(image.scale * image.crack_length,2))
+            if abs(float(image.scale) - 1.0) < epsilon:
+                display_cm_list.append(0)
+            else:
+                display_cm_list.append(1)
+
+        # if the image is chosen (it appears in the URL as such:
+        #  mcd/record/<recordID>/image-<imageID>/
+        #  Example: mcd/record/19/image-85/
+        display_image_1 = MCD_Photo_Analysis.objects.get(pk=self.kwargs['image_pk1'])
+        display_image_2 = MCD_Photo_Analysis.objects.get(pk=self.kwargs['image_pk2'])
+
+
+
+        def list_literal_eval(x):
+            import ast
+            return ast.literal_eval(x)
+
+        crack_labels = []
+        crack_locations = []
+        crack_lengths = []
+        sorted_ids = []
+        # get biggest crack length:
+        try:
+            crack_labels_csv = pd.read_csv(display_image_1.crack_labels_csv)
+
+            crack_labels = crack_labels_csv["Label"].astype(int)
+            crack_locations = crack_labels_csv["Loc (x,y)"].apply(list_literal_eval)
+            crack_lengths = crack_labels_csv["Length (pxls)"].astype(int)
+
+            # (negation to sort in descending order!)
+            sorted_ids = np.argsort(-crack_lengths)
+        except:
+            pass
+
+        comparison = False
+        comparison_method = False
+        try:
+            comparison_method = self.kwargs['comparison']
+            comparison = True
+        except:
+            pass
+
+        # t.crack_length = float(sizes["Length (pxls)"].max())
+
+        data = super().get_context_data(**kwargs)
+        data['images_of_record']  = images_in_record.reverse()
+        data['display_image']     = display_image_1
+        data['display_image_2']     = display_image_2
+        data['display_cm']        = display_cm_list
+        data['longest_crack']     = biggest_crack_length_list
+        data['crack_labels']      = crack_labels
+        data['crack_locations']   = crack_locations
+        data['crack_lengths']     = crack_lengths
+        data['sorted_ids']        = sorted_ids
+        # data for record image comparison:
+        data['comparison']        = comparison
+        data['comparison_method'] = comparison_method
+        return data
 
 class RecordDetailsView(generic.DetailView):
     model = MCD_Record
@@ -233,16 +318,58 @@ class RecordDetailsView(generic.DetailView):
             else:
                 display_cm_list.append(1)
 
+        # if the image is chosen (it appears in the URL as such:
+        #  mcd/record/<recordID>/image-<imageID>/
+        #  Example: mcd/record/19/image-85/
         try:
             display_image = MCD_Photo_Analysis.objects.get(pk=self.kwargs['image_pk'])
         except:
             display_image = images_in_record.latest('datetime_uploaded')
 
+
+        def list_literal_eval(x):
+            import ast
+            return ast.literal_eval(x)
+
+        crack_labels = []
+        crack_locations = []
+        crack_lengths = []
+        sorted_ids = []
+        # get biggest crack length:
+        try:
+            crack_labels_csv = pd.read_csv(display_image.crack_labels_csv)
+
+            crack_labels = crack_labels_csv["Label"].astype(int)
+            crack_locations = crack_labels_csv["Loc (x,y)"].apply(list_literal_eval)
+            crack_lengths = crack_labels_csv["Length (pxls)"].astype(int)
+
+            # (negation to sort in descending order!)
+            sorted_ids = np.argsort(-crack_lengths)
+        except:
+            pass
+
+        comparison = False
+        comparison_method = False
+        try:
+            comparison_method = self.kwargs['comparison']
+            comparison = True
+        except:
+            pass
+
+        # t.crack_length = float(sizes["Length (pxls)"].max())
+
         data = super().get_context_data(**kwargs)
-        data['images_of_record'] = images_in_record.reverse()
-        data['display_image'] = display_image
-        data['display_cm']   = display_cm_list
-        data['crack_len_cm'] = biggest_crack_length_list
+        data['images_of_record']  = images_in_record.reverse()
+        data['display_image']     = display_image
+        data['display_cm']        = display_cm_list
+        data['longest_crack']     = biggest_crack_length_list
+        data['crack_labels']      = crack_labels
+        data['crack_locations']   = crack_locations
+        data['crack_lengths']     = crack_lengths
+        data['sorted_ids']        = sorted_ids
+        # data for record image comparison:
+        data['comparison']        = comparison
+        data['comparison_method'] = comparison_method
         return data
 
 
@@ -269,19 +396,22 @@ class EnqueuePhotoAnalysis(threading.Thread):
 
         overlay_photo_url, \
         output_photo_url,\
-        crack_len_url    = analyse_photo(self.input_url.url, self.title)
+        crack_len_url,\
+        crack_labels_url = analyse_photo(self.input_url.url, self.title)
 
         print("crack_len_url", crack_len_url)
         print("photo analysed, posting to db index:", self.db_pk)
 
         # get biggest crack length:
-        sizes = pd.read_csv(crack_len_url)
+        sizes = pd.read_csv(conf_settings.MEDIA_URL.split('/')[1]+"\\"+crack_len_url)
         t.crack_length = float(sizes["Length (pxls)"].max())
 
         # after the photo has been analysed ...
-        t.output_photo  = output_photo_url  # change field
-        t.overlay_photo = overlay_photo_url  # change field
-        t.analysis_complete = True # change field
+        t.output_photo       = output_photo_url  # change field
+        t.overlay_photo      = overlay_photo_url  # change field
+        t.crack_labels_csv = crack_len_url  # change field
+        t.crack_labels_photo = crack_labels_url  # change field
+        t.analysis_complete  = True # change field
 
         t.datetime_analysed = datetime.datetime.now()
 

@@ -4,6 +4,118 @@
     MCD | {{ record.title }}
 {% endblock %}
 {% block body %}
+
+<script type="text/javascript">
+    $(document).ready(function ()
+    {
+        $('#sidebarCollapse').on('click', function ()
+        {
+            $('#sidebar').toggleClass('active');
+            $('.hideable').toggleClass('hidden');
+            $('.showable').toggleClass('hidden');
+            $('.shrinkable').toggleClass('text-small');
+        });
+    });
+
+    jQuery(function()
+    {
+         jQuery('#ImageMap1').maphilight();
+         $('.map').maphilight({ alwaysOn: true });
+
+    });
+
+    function slide_div_toggle(div_id)
+    {
+        sliding_div = document.getElementById(div_id);
+        sliding_div.classList.toggle("slide-on");
+    }
+
+    function getContainedSize(img)
+    {
+      var ratio = img.naturalWidth/img.naturalHeight;
+      var width = img.height*ratio;
+      var height = img.height;
+      if (width > img.width)
+      {
+        width = img.width;
+        height = img.width/ratio
+      }
+      return [width, height]
+    }
+
+    function resize_marker_location()
+    {
+         var wall_img    = document.getElementById('ImageMap1');
+         var width_ratio = wall_img.naturalWidth / getContainedSize(wall_img)[0];
+         var height_ratio = wall_img.naturalHeight / getContainedSize(wall_img)[1];
+         var max_crack_len  = {{ display_image.crack_length }}
+
+         console.log("width:  " + wall_img.naturalWidth  + " " + getContainedSize(wall_img)[0]);
+         console.log("height: " + wall_img.naturalHeight + " " + getContainedSize(wall_img)[1]);
+         console.log("ratios: " + width_ratio + " " + height_ratio);
+
+         markers = document.getElementsByClassName("crack-marker");
+         for(i = 0; i < markers.length; i++)
+         {
+             scaled_x = markers[i].getAttribute("coords").split(',')[0]/width_ratio;
+             scaled_y = markers[i].getAttribute("coords").split(',')[1]/height_ratio;
+             radius   = markers[i].getAttribute("coords").split(',')[2];
+
+             // normalise the radius
+             normalised_radius = 50 * radius/max_crack_len;
+
+             markers[i].setAttribute("coords", scaled_x+","+scaled_y+","+normalised_radius);
+
+             units = "cm";
+             if (Math.abs(1.00 - {{ display_image.scale }}) < 0.0001)
+             {
+                units = "px";
+             }
+
+             title = markers[i].getAttribute("title");
+             markers[i].setAttribute("title", title+"\n"+
+                                     parseFloat(radius*{{ display_image.scale }}).toFixed(2) + " " + units)
+         }
+
+         // Set the correct positions of crack label markers:
+
+         labels = document.getElementsByClassName("crack-label");
+         for(j = 0; j < labels.length; j++)
+          {
+             style_dict = JSON.parse(labels[j].getAttribute("style"));
+
+             style_dict["left"] = parseFloat(style_dict["left"]) / width_ratio  + "px";
+             style_dict["top"] = parseFloat(style_dict["top"]) / height_ratio + "px";
+
+             style_string = "";
+             for(const [key, value] of Object.entries(style_dict))
+             {
+                 style_string += key + ":" + value + "; ";
+             }
+
+             labels[j].setAttribute("style", style_string);
+             console.log(labels[j].getAttribute("style"));
+          }
+
+         detailed_crack_info = document.getElementsByClassName("detailed_crack_info");
+         detailed_crack_unit = document.getElementsByClassName("detailed_crack_unit");
+
+         for(k = 0; k < detailed_crack_info.length; k++)
+         {
+            length = detailed_crack_info[k].innerText;
+            detailed_crack_info[k].innerText = parseFloat(length*{{ display_image.scale }}).toFixed(2);
+
+            units = "cm";
+            if (Math.abs(1.00 - {{ display_image.scale }}) < 0.0001)
+            {
+                units = "px";
+            }
+
+            detailed_crack_unit[k].innerText = units;
+
+         }
+    }
+</script>
 {#    <h1>{{ page_title }}</h1>#}
 
 {#    Number of images in this object: {{ object.num_photos }}#}
@@ -42,13 +154,10 @@
                     </a>
                     <ul class="collapse list-unstyled" id="homeSubmenu">
                         <li>
-                            <a href="#">Comparing method 1</a>
+                            <a href="#">Side-by-side</a>
                         </li>
                         <li>
-                            <a href="#">Comparing method 2</a>
-                        </li>
-                        <li>
-                            <a href="#">Comparing method 3</a>
+                            <a href="#">Switching</a>
                         </li>
                     </ul>
                 </li>
@@ -64,9 +173,9 @@
                            <a href="{% url 'mcd:detailed_record_image_pk' record.id photo.id %}">
                                 {% load index_templatetag %}
                                 {{ photo.datetime_uploaded }}
-                                {% if crack_len_cm|index:forloop.counter0 > 0 %}
+                                {% if longest_crack|index:forloop.counter0 > 0 %}
                                     |
-                                    {{ crack_len_cm|index:forloop.counter0 }}
+                                    {{ longest_crack|index:forloop.counter0 }}
                                     {% if display_cm|index:forloop.counter0 == 1 %}
                                         cm
                                     {% else %}
@@ -80,8 +189,8 @@
                            <a href="{% url 'mcd:detailed_record_image_pk' record.id photo.id %}">
                                 {{ photo.datetime_uploaded |date:"M d, Y" }}
                                 {% load index_templatetag %}
-                                {% if crack_len_cm|index:forloop.counter0 > 0 %}
-                                    {{ crack_len_cm|index:forloop.counter0 }}
+                                {% if longest_crack|index:forloop.counter0 > 0 %}
+                                    {{ longest_crack|index:forloop.counter0 }}
                                     {% if display_cm|index:forloop.counter0 == 1 %}
                                         cm
                                     {% else %}
@@ -131,51 +240,125 @@
                 </div>
             </nav>
 
-            <h2><b>OUTPUT | </b> Classified Masonry Crack Overlay:</h2>
-            <div class="img-container">
-                {% if display_image.overlay_photo %}
-                    <img class="img-scaling" width="1280px" height="720px" src="{{ display_image.overlay_photo.url }}">
-                {% endif %}
-            </div>
+            {% if comparison %}
+                {% block comparison_content %}
+                {% endblock %}
+            {% else %}
 
-            <div class="floating-wrapper">
-                <div>
-                    <h2>Input Image
-                        <a class="label-grey-small text-normal" href="">
-                            {{ display_image.title }}
-                        </a>
-                    </h2>
+                <h2><b>OUTPUT | </b> Classified Masonry Crack Overlay:</h2>
+                <div class="img-container">
+                    {% if display_image.overlay_photo %}
+                        <img class="img-scaling" width="1280px" height="720px" src="{{ display_image.overlay_photo.url }}">
+                    {% endif %}
+                </div>
 
-                    <div class="img-container">
-                        <img class="img-scaling" width="640px" height="360px" src="{{ display_image.input_photo.url }}">
+                <div class="floating-wrapper">
+                    <div>
+                        <h2>Input Image
+                            <a class="label-grey-small text-normal" href="">
+                                {{ display_image.title }}
+                            </a>
+                        </h2>
+
+                        <div class="img-container">
+                            <img class="img-scaling" width="640px" height="360px" src="{{ display_image.input_photo.url }}">
+                        </div>
+                    </div>
+                    <div>
+                        <h2>Output Image</h2>
+                        {% if display_image.output_photo %}
+                            <div class="img-container">
+                                <img class="img-scaling" width="640px" height="360px" src="{{ display_image.output_photo.url }}">
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
-                <div>
-                    <h2>Output Image</h2>
-                    {% if display_image.output_photo %}
-                        <div class="img-container">
-                            <img class="img-scaling" width="640px" height="360px" src="{{ display_image.output_photo.url }}">
-                        </div>
-                    {% endif %}
 
+                <div>
+                    <button onclick="slide_div_toggle('sliding-divider')" class="btn btn-toggle-menu">Detailed Crack Information</button>
+                    <div id="sliding-divider" class="sliding-div slide-off">
+                        <ul class="list-group-sequence ">
+                            {% for sorted_id in sorted_ids %}
+                                <li class="list-group-item">
+                                    <div class="list-item-container">
+                                        <div class="list-item-first label-grey">
+                                            #{{ crack_labels|index:sorted_id }}
+                                        </div>
+                                    </div>
+                                    <p class="detailed_crack_info list-item-sequence">
+                                        {{ crack_lengths|index:sorted_id }}
+                                    </p>
+                                    <p class="detailed_crack_unit list-item-sequence">
+                                        {% if display_cm|index:sorted_id == 1 %}
+                                            cm
+                                        {% else %}
+                                            px
+                                        {% endif %}
+                                    </p>
+
+                            {% endfor %}
+                        </ul>
+                    </div>
                 </div>
-            </div>
+
+                {% if display_image.crack_labels_photo %}
+                    <script type="text/javascript" src="http://davidlynch.org/projects/maphilight/jquery.maphilight.js"></script>
+                    <div class="img-container">
+                        <div class="relative-wrapper">
+
+                            <img id="ImageMap1"
+                                 usemap="#ImageMapmapAreas"
+                                 class="map mapHiLight img-scaling"
+                                 width="1280px" height="720px"
+                                 src="{{ display_image.crack_labels_photo.url }}"
+                                 onload="resize_marker_location()">
+        {#                    <map id="simple" name="simple">#}
+        {#                      <area alt="" title="" href="#Earth" coords="228,151,53" shape="circle" data-maphilight='{"strokeColor":"0000ff","strokeWidth":5,"fillColor":"00ff00","fillOpacity":0.6}'/>#}
+        {#                      <area alt="" title="" href="#Sun" coords="68,54,44" shape="circle" data-maphilight="{'strokeColor':'0000ff','strokeWidth':5,'fillColor':'00ff00','fillOpacity':0.6}"/>#}
+        {#                      <area shape="poly" coords="211,3,121,67,112,53,95,103,146,108,136,92,229,25" href="#" alt="arrow">#}
+        {#                      <area shape="poly" coords="78,83,70,100,52,104,64,115,61,133,78,124,94,133,91,116,104,102,87,101,79,88" href="#" alt="star">#}
+        {#                      <area shape="poly" coords="248,126,222,150,202,122,233,105,239,118,249,125,250,128" href="#" alt="a square">#}
+        {#                      <area shape="poly" coords="151,249,175,225,182,222,167,193,136,221,153,250" href="#" alt="another square">#}
+        {#                      <area shape="rect" coords="200,200,290,290" href="#" alt="Shadow for some">#}
+        {#                    </map>#}
+
+        {#                    <img id="ImageMap1" src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/cb/Planets2013.svg/260px-Planets2013.svg.png" usemap="#ImageMapmapAreas" />#}
+                            <map id="ImageMapmapAreas" class="map" name="ImageMapmapAreas">
+                                {% load index_templatetag %}
+                                {% for crack_loc in crack_locations %}
+                                    <div>
+                                        <p class="crack-label label-grey-outline" style='{"position": "absolute",
+                                                                      "left": "{{ crack_loc.0 }}",
+                                                                      "top": "{{ crack_loc.1 }}"}'>
+                                            #{{ crack_labels|index:forloop.counter0 }}
+    {#                                        {{ crack_lengths|index:forloop.counter0 }}#}
+    {#                                        {% if display_cm|index:forloop.counter0 == 1 %}#}
+    {#                                            cm#}
+    {#                                        {% else %}#}
+    {#                                            px#}
+    {#                                        {% endif %}#}
+                                        </p>
+                                        <area alt=""
+                                              title="x = {{ crack_loc.0 }} y = {{ crack_loc.1 }} | {{ crack_lengths|index:forloop.counter0 }}"
+                                              href="#Earth"
+                                              class="crack-marker"
+                                              coords="{{ crack_loc.0 }},{{ crack_loc.1 }},{{ crack_lengths|index:forloop.counter0 }}"
+                                              shape="circle"
+                                              data-text="TEST"
+                                              data-maphilight='{"strokeColor":"D60002",
+                                                                "strokeWidth":5,
+                                                                "fillColor":"00ff00",
+                                                                "fillOpacity":0.6}'/>
+                                    </div>
+                                {% endfor %}
+        {#                        <area alt="" title="" href="#Sun" coords="448,454,44" shape="circle" data-maphilight="{'strokeColor':'0000ff','strokeWidth':5,'fillColor':'00ff00','fillOpacity':0.6}"/>#}
+                            </map>
+                        </div>
+                    </div>
+                {%  endif %}
+            {% endif %}
 
         </div>
     </div>
-
-    <script type="text/javascript">
-        $(document).ready(function ()
-        {
-            $('#sidebarCollapse').on('click', function ()
-            {
-                $('#sidebar').toggleClass('active');
-                $('.hideable').toggleClass('hidden');
-                $('.showable').toggleClass('hidden');
-                $('.shrinkable').toggleClass('text-small');
-            });
-        });
-    </script>
-
 
 {% endblock %}

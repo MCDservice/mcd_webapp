@@ -84,6 +84,10 @@ body{
     margin-right: 15px;
 }
 
+.list-item-sequence {
+   float: left;
+}
+
 .list-item-sidebar{
     float: left;
     margin-bottom: 5px;
@@ -97,6 +101,14 @@ body{
     
 .list-group li {
     display: flow-root;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.list-group-sequence li {
+    border-radius: 20px;
+    margin: 5px;
+    display: inline-flex;
     justify-content: space-between;
     align-items: center;
 }
@@ -240,6 +252,20 @@ margin: 0 !important;
     padding: 2px;
 }
 
+.sliding-div{
+    height: 0px;
+    display: none;
+}
+
+.slide-off{
+    height: 0px;
+}
+
+.slide-on{
+    height: auto;
+    display: block;
+}
+
 /*img{*/
 /*    height: 1000px;*/
 /*}*/
@@ -254,6 +280,14 @@ margin: 0 !important;
 .img-scaling{
     /*height: 170px;*/
     object-fit: contain;
+}
+
+.color-pick{
+    background-color: #4cb900;
+}
+
+.crack-label{
+
 }
 
 strong{

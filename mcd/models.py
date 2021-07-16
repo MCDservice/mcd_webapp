@@ -66,6 +66,9 @@ class MCD_Photo_Analysis (models.Model):
     input_photo         = models.FileField(null=False, blank=False)
     overlay_photo       = models.FileField(null=True, blank=True)
     output_photo        = models.FileField(null=True, blank=True)
+    crack_labels_photo  = models.FileField(null=True, blank=True)
+
+    crack_labels_csv    = models.FileField(null=True, blank=True)
     analysis_complete   = models.BooleanField(null=False, default=False)
 
     crack_length        = models.DecimalField(null=True, default=-1,
