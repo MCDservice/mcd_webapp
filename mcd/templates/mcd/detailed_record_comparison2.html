@@ -1,0 +1,80 @@
+{% extends 'mcd/detailed_record.html' %}
+
+{% block comparison_content %}
+
+    <script>
+        function chooseImg1()
+        {
+            select1 = document.getElementById("image1").value;
+
+            var url = "{% url 'mcd:detailed_record_compare1' record.id 'comparison2' '00000' display_image_2.id %}".replace(/00000/, select1.toString());
+            window.location = url;
+        }
+
+        function chooseImg2()
+        {
+            select2 = document.getElementById("image2").value;
+
+            var url = "{% url 'mcd:detailed_record_compare1' record.id 'comparison2' display_image.id '00000' %}".replace(/00000/, select2.toString());
+            window.location = url;
+        }
+
+        function switchImg()
+        {
+            imgs_to_switch = document.getElementsByClassName("switch-img");
+
+            for(i = 0; i < imgs_to_switch.length; i++)
+            {
+                imgs_to_switch[i].classList.toggle("display-false");
+            }
+
+        }
+    </script>
+
+    <div class="floating-wrapper">
+    <div>
+        <h2>
+            <b>COMPARING | </b>
+            Image {{ display_image.id }} ({{ display_image.datetime_uploaded }})
+            &
+            Image {{ display_image_2.id }} ({{ display_image_2.datetime_uploaded }})
+        </h2>
+        <button onclick="switchImg()" class="btn btn-toggle-menu">Switch Images </button>
+        <label for="image1">Choose Image 1:</label>
+        <select id="image1" name="image1" onchange="chooseImg1()" >
+            <option value="" selected>Pick the First Image</option>
+            {% for photo in images_of_record %}
+                <option value="{{ photo.id }}">
+                    #{{ photo.id }} | {{ photo.title }} - {{ photo.datetime_uploaded }}
+                </option>
+            {% endfor %}
+        </select>
+
+        <label for="image2">Choose Image 2:</label>
+        <select id="image2" name="image2" onchange="chooseImg2()">
+            <option value="" selected>Pick the Second Image</option>
+            {% for photo in images_of_record %}
+                <option value="{{ photo.id }}">
+                    #{{ photo.id }} | {{ photo.title }} - {{ photo.datetime_uploaded }}
+                </option>
+            {% endfor %}
+        </select>
+
+        <div class="switch-img img-container">
+            {% if display_image.overlay_photo %}
+                <img class="img-scaling" width="1280px" height="720px"
+                     src="{{ display_image.overlay_photo.url }}">
+            {% endif %}
+        </div>
+
+        <div class="switch-img img-container display-false">
+            {% if display_image.overlay_photo %}
+                <img class="img-scaling" width="1280px" height="720px"
+                     src="{{ display_image_2.overlay_photo.url }}">
+            {% endif %}
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}
