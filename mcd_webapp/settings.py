@@ -168,5 +168,9 @@ STATIC_ROOT = BASE_DIR #os.path.join(BASE_DIR, 'staticfiles')
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # where the user uploaded data is stored!
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media') # on the computer
-MEDIA_URL = '/media/' # relative URL - for browsers to access files over HTTP
+# MEDIA_ROOT = os.path.join(BASE_DIR, 'media') # on the computer
+# MEDIA_URL = '/media/' # relative URL - for browsers to access files over HTTP
+
+GOOGLE_CLOUD_STORAGE_BUCKET = 'mcd_file_storage'
+MEDIA_URL = 'https://storage.cloud.google.com/mcd_file_storage/media/'
+
