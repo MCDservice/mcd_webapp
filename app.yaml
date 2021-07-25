@@ -14,3 +14,5 @@ handlers:
   script: auto
 # [END django_app]
 
+env_variables:
+    CLOUD_STORAGE_BUCKET: mcd_file_storage

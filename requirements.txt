@@ -8,3 +8,4 @@ django_countries
 pandas
 numpy
 opencv-python
+google-cloud-storage==1.41.0
