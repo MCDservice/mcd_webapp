@@ -355,24 +355,27 @@ def analyse_photo(Image_Path, Image_Name):
     print("[INFO] Package Importing Started")
 
     #-----------------------------------------------------------------------------
-
+    print(">>> Made it to 358")
     # import the necessary packages
     import time
     # Start timer
     start0 = time.time()
     start = start0
 
-
+    print(">>> Made it to 365")
     # import the necessary packages
     import os
+    print(">>> Made it to 368")
     # (Optional) Enable CUDA growth if it gives issues.
     # os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
     os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'false'
+    print(">>> Made it to 372")
     # (Optional) Disable tensorflow warnings.
     # os.environ['AUTOGRAPH_VERBOSITY'] = '0'
     # SM Compatibility option with TF 2.0+
     os.environ["SM_FRAMEWORK"] = "tf.keras"
 
+    print(">>> Made it to 376")
 
     import tensorflow as tf
     cfg = tf.compat.v1.ConfigProto()
