@@ -8,3 +8,7 @@ from mcd_webapp.wsgi import application
 # Alternatively, you can add a custom entrypoint field in your app.yaml:
 # entrypoint: gunicorn -b :$PORT mysite.wsgi
 app = application
+
+# Configure this environment variable via app.yaml
+import os
+CLOUD_STORAGE_BUCKET = os.environ['CLOUD_STORAGE_BUCKET']

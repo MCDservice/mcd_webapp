@@ -9,6 +9,7 @@ from django.shortcuts import render, \
     redirect, \
     get_object_or_404
 from django.urls import reverse_lazy
+from google.cloud import storage
 
 # form to create , edit and delete a database object
 from django.views.generic.edit import CreateView, UpdateView, DeleteView
@@ -38,6 +39,9 @@ from django.views.generic import View
 from .forms import UserForm, MCD_Photo_AnalysisFORM
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.conf import settings as conf_settings
+
+import os
+# os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'client_secret_477185057888-brm030gcqnjoo7uijrijesp1ogi8hkah.apps.googleusercontent.com.json'
 
 # @login_required
 class IndexView(generic.ListView):
@@ -276,7 +280,7 @@ class RecordComparison1View(generic.DetailView):
         data = super().get_context_data(**kwargs)
         data['images_of_record']  = images_in_record.reverse()
         data['display_image']     = display_image_1
-        data['display_image_2']     = display_image_2
+        data['display_image_2']   = display_image_2
         data['display_cm']        = display_cm_list
         data['longest_crack']     = biggest_crack_length_list
         data['crack_labels']      = crack_labels
@@ -403,7 +407,16 @@ class EnqueuePhotoAnalysis(threading.Thread):
         print("photo analysed, posting to db index:", self.db_pk)
 
         # get biggest crack length:
-        sizes = pd.read_csv(conf_settings.MEDIA_URL.split('/')[1]+"\\"+crack_len_url)
+        # sizes = pd.read_csv(conf_settings.MEDIA_URL.split('/')[1]+"\\"+crack_len_url)
+
+        # "https://storage.cloud.google.com/mcd_file_storage/media/142_epoch_45_f1_m_dil_0.796/a_6_32/Sizes.csv"
+
+        # sizes = pd.read_csv(conf_settings.MEDIA_URL.split('/')[1]+"\\"+crack_len_url)
+        # csv_cloud_url = conf_settings.MEDIA_URL + crack_len_url.replace('\\', '/')
+        csv_cloud_url = 'gs://'+conf_settings.GOOGLE_CLOUD_STORAGE_BUCKET+"/media/"+crack_len_url.replace('\\', '/')
+        print(">>> reading csv from URL: ", csv_cloud_url )
+        sizes = pd.read_csv(csv_cloud_url, sep=",", lineterminator='\r')
+        print(">  >  > dataframe: ", list(sizes))
         t.crack_length = float(sizes["Length (pxls)"].max())
 
         # after the photo has been analysed ...
@@ -461,6 +474,33 @@ class PhotoAnalysisCreate(CreateView):
         current_datetime = datetime.datetime.now()
 
         print("in form_valid (self.request.user |", self.request.user, ")")
+
+
+
+        ### --------- GOOGLE CLOUD STORAGE COMPATIBILITY ----------- ###
+        # Create a Cloud Storage client.
+        gcs = storage.Client()
+
+        # Get the bucket that the file will be uploaded to.
+        bucket = gcs.get_bucket(conf_settings.GOOGLE_CLOUD_STORAGE_BUCKET)
+
+        # Create a new blob and upload the file's content.
+        blob = bucket.blob('media/'+uploaded_filename)
+
+        uploaded_file = form.instance.input_photo
+        blob.upload_from_string(
+            uploaded_file.read(),
+            # content_type=uploaded_file.content_type
+        )
+
+        # The public URL can be used to directly access the uploaded file via HTTP.
+        print("blob path:", blob.path)
+        print("blob purl:", blob.public_url)
+        # print("blob help:", blob.path_helper(conf_settings.GOOGLE_CLOUD_STORAGE_BUCKET, uploaded_file))
+        form.instance.input_photo = uploaded_filename #blob.path
+        ### --------- GOOGLE CLOUD STORAGE COMPATIBILITY ----------- ###
+
+
 
         # if no record was specified, create new record and assign to selected object:
         if form.instance.record_id == None:

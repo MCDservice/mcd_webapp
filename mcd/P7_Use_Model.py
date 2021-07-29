@@ -1,7 +1,148 @@
+import base64
+import io
+import os
+
 from urllib.request import urlopen
 import cv2
 import numpy as np
 
+from google.cloud import storage, vision
+from django.conf import settings as conf_settings
+
+import matplotlib.pyplot as plt
+
+# utility function to read files from google cloud storage
+import cloudstorage as gcs
+# def read_file(filename):
+#   print('Reading the full file contents:\n')
+#
+#   gcs_file = gcs.open(filename)
+#   contents = gcs_file.read()
+#   gcs_file.close()
+#   print(contents)
+
+from tempfile import TemporaryFile
+import mimetypes
+
+def save_memory_to_image_in_cloud(data, location, media=False, colour=False):
+
+    # since google cloud uses '/' to indicate directories, ...
+    # ... change all '\' (if any) to '/'
+    location = location.replace('\\', '/')
+    client = storage.Client()
+
+    bucket = client.get_bucket(conf_settings.GOOGLE_CLOUD_STORAGE_BUCKET)
+
+    with TemporaryFile() as gcs_image:
+        # data.tofile(gcs_image)
+        # cv2.imwrite(gcs_image, data)
+        # cv2.imencode('.png', data, gcs_image)
+
+        # encode
+        is_success, buffer = cv2.imencode(".png", data)
+        io_buf = io.BytesIO(buffer)
+
+        gcs_image.seek(0)
+        blob = bucket.blob(media*('media/') + location)
+        blob.upload_from_file(io_buf,
+                              content_type=mimetypes.MimeTypes().guess_type(location)[0])
+
+
+def save_plt_to_image_in_cloud(data, location, media=False, colour=False):
+
+    # since google cloud uses '/' to indicate directories, ...
+    # ... change all '\' (if any) to '/'
+    location = location.replace('\\', '/')
+    client = storage.Client()
+
+    bucket = client.get_bucket(conf_settings.GOOGLE_CLOUD_STORAGE_BUCKET)
+
+    # plt.plot(data)
+    # fig_to_upload = plt.gcf()
+
+    # # Save figure image to a bytes buffer
+    # buf = io.BytesIO()
+    # # fig_to_upload.savefig(buf, format='png')
+    # plt.imsave(data, buf)
+    # buf.seek(0)
+    # image_as_a_string = base64.b64encode(buf.read())
+    #
+    # blob = bucket.blob(media * ('media/') + location)
+    # blob.upload_from_string(image_as_a_string, content_type='image/png')
+
+    with TemporaryFile() as temp_image:
+        plt.imsave(temp_image, data)
+        temp_image.seek(0)
+
+        blob = bucket.blob(media * ('media/') + location)
+        blob.upload_from_file(temp_image, content_type='image/png')
+    #     # encode
+    #     is_success, buffer = cv2.imencode(".png", data)
+    #     io_buf = io.BytesIO(buffer)
+    #
+    #     gcs_image.seek(0)
+    #
+    #     blob = bucket.blob(media*('media/') + location)
+    #     blob.upload_from_file(io_buf,
+    #                           content_type=mimetypes.MimeTypes().guess_type(location)[0])
+
+
+def save_csv_to_cloud(dataframe, location, media=False):
+    # since google cloud uses '/' to indicate directories, ...
+    # ... change all '\' (if any) to '/'
+    location = location.replace('\\', '/')
+
+    # os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'C:\\Users\\Dom\\AppData\\Local\\Google\\Cloud SDK\\mcd_webapp\\mcd\\client_secret_477185057888-brm030gcqnjoo7uijrijesp1ogi8hkah.apps.googleusercontent.com.json'
+
+    client = storage.Client()
+    bucket = client.get_bucket(conf_settings.GOOGLE_CLOUD_STORAGE_BUCKET)
+
+    bucket.blob(media*('media/') + location).upload_from_string(dataframe.to_csv(), 'text/csv')
+
+
+def save_to_cloud(file_to_upload, filename, media=False):
+    ### --------- GOOGLE CLOUD STORAGE COMPATIBILITY ----------- ###
+    # Create a Cloud Storage client.
+    gcs = storage.Client()
+
+    # Get the bucket that the file will be uploaded to.
+    bucket = gcs.get_bucket(conf_settings.GOOGLE_CLOUD_STORAGE_BUCKET)
+
+    # Create a new blob and upload the file's content.
+    blob = bucket.blob(media*('media/') + filename)
+
+    # uploaded_file = form.instance.input_photo
+    blob.upload_from_string(
+        file_to_upload.read(),
+        # content_type=uploaded_file.content_type
+    )
+
+def read_file(filename, readFlag=cv2.IMREAD_COLOR):
+    import io
+    import numpy as np
+    from google.cloud import storage
+
+    print(">>> Reading file ", filename, " Blob from bucket ...")
+
+    storage_client = storage.Client()
+    bucket = storage_client.get_bucket('mcd_file_storage')
+
+    blob = bucket.blob(filename)
+
+    img_as_string = blob.download_as_bytes()
+    print("<> <> <> img as string: ", img_as_string)
+
+    # image = np.frombuffer(img_as_string)
+    # with io.BytesIO() as in_memory_file:
+    #     blob.download_to_file(in_memory_file)
+    #     in_memory_file.seek(0)
+    #     image = np.load(in_memory_file, allow_pickle=True)
+    #
+    # # then, for example:
+    # print(image)
+    # return cv2.imdecode(image, np.uint8, readFlag)
+
+    return cv2.imdecode(np.frombuffer(img_as_string, np.uint8), -1)
 
 def url_to_image(url, readFlag=cv2.IMREAD_COLOR):
     # download the image, convert it to a NumPy array, and then read
@@ -249,7 +390,7 @@ def analyse_photo(Image_Path, Image_Name):
     import numpy as np
     import pandas as pd
     import tkinter as tk
-    import matplotlib.pyplot as plt
+    # import matplotlib.pyplot as plt
     from tkinter import filedialog
 
     # import the necessary packages
@@ -396,7 +537,7 @@ def analyse_photo(Image_Path, Image_Name):
 
     #-----------------------------------------------------------------------------
 
-    Image_Path = "http://127.0.0.1:8000" + Image_Path
+    # Image_Path = "http://127.0.0.1:8000" + Image_Path
     print("Image Path: ", Image_Path)
     # Image_Path = str(pathlib.Path(Image_Path))
     Model_Path = str(pathlib.Path(Model_Path))
@@ -449,15 +590,19 @@ def analyse_photo(Image_Path, Image_Name):
     # Load image
     # Source = cv2.imread(Image_Path)
     print(">>> Image_Path:", Image_Path)
-    Source = url_to_image(Image_Path)
+    # Source = url_to_image(Image_Path)
+    # Source = url_to_image("https://storage.cloud.google.com/mcd_file_storage/media/a_6_32")
+    Source = read_file("media/a_6_32")
     List_Images = [["Original Image",np.copy(Source)]]
 
 
     Image = np.copy(Source)
+    print("image right now: ", Image, " its shape: ", Image.shape)
+
     # Adjust size of images with very small/high resolutions
-    [x0,y0] = [Image.shape[1], Image.shape[0]];
-    [xi,yi] = [x0,y0]; [xr,yr] = [xi,yi];
-    [xo,yo] = [Image_Dims[0],Image_Dims[1]];
+    [x0,y0] = [Image.shape[1], Image.shape[0]]
+    [xi,yi] = [x0,y0]; [xr,yr] = [xi,yi]
+    [xo,yo] = [Image_Dims[0],Image_Dims[1]]
     if Adjust_Size==True:
         ImDim = np.average([xi,yi])
         OutDim = np.average([xo,yo])
@@ -846,19 +991,33 @@ def analyse_photo(Image_Path, Image_Name):
         # Store plt figure
         Figure_Path = os.path.join(AllPredictions_Path, Image_Name + " (Fig).png")
         plt.savefig(Figure_Path, dpi=my_dpi, bbox_inches = "tight")
-        
+
+        # NEW
+        save_memory_to_image_in_cloud(FinalMask, BinMask_Path)
+        # endNEW
+
         # Save all images from the list
         for [n1,[Saved_Title,Saved_Image]] in enumerate(List_Images):
             # Save using CV2
             Temp_Path = os.path.join(AllPredictions_Path1, Image_Name + \
                         " (#" + str(n1) + " - " + Saved_Title + ").png")
             cv2.imwrite(Temp_Path, Saved_Image)
+
+            # NEW
+            save_memory_to_image_in_cloud(Saved_Image, Temp_Path)
+            # endNEW
+
             # Save using PLT
             if len(Saved_Image.shape)==3 and Saved_Image.shape[2]==3:
                 Saved_Image = cv2.cvtColor(Saved_Image, cv2.COLOR_BGR2RGB)
+            # Saved_Image = cv2.cvtColor(Saved_Image, cv2.COLOR_BGR2RGB)
+
             Temp_Path = os.path.join(AllPredictions_Path2, Image_Name + \
                         " (#" + str(n1) + " - " + Saved_Title + ").png")
             plt.imsave(Temp_Path,Saved_Image)
+            # save_memory_to_image_in_cloud(Saved_Image, Temp_Path)
+            save_plt_to_image_in_cloud(Saved_Image, Temp_Path)
+
 
             url_dict[Saved_Title] = Temp_Path.split('\\', 1)[1]
 
@@ -867,6 +1026,12 @@ def analyse_photo(Image_Path, Image_Name):
             crack_length_path = os.path.join(AllPredictions_Path,'Sizes.csv')
             url_dict["crack_len_csv"] = crack_length_path.split('\\', 1)[1]
             Df_Sizes.to_csv(crack_length_path, index=False)
+
+            print(">>> writing to csv at path: ", crack_length_path)
+            save_csv_to_cloud(Df_Sizes, crack_length_path)
+
+            # save_to_cloud(Df_Sizes, crack_length_path, media=True)
+
     else:
         print("[INFO] Output not saved")
 

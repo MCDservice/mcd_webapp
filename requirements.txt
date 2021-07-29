@@ -1,3 +1,4 @@
+GoogleAppEngineCloudStorageClient
 asgiref==3.3.4
 Django==3.2.4
 djangorestframework==3.12.4
@@ -9,3 +10,9 @@ pandas
 numpy
 opencv-python
 google-cloud-storage==1.41.0
+google-cloud-vision
+tensorflow
+matplotlib
+scikit-image
+fsspec
+gcsfs
