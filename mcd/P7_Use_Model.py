@@ -11,8 +11,6 @@ from django.conf import settings as conf_settings
 
 import matplotlib.pyplot as plt
 
-# utility function to read files from google cloud storage
-import cloudstorage as gcs
 # def read_file(filename):
 #   print('Reading the full file contents:\n')
 #
