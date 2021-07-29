@@ -366,9 +366,10 @@ def analyse_photo(Image_Path, Image_Name):
     # import the necessary packages
     import os
     # (Optional) Enable CUDA growth if it gives issues.
-    os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
+    # os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
+    os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'false'
     # (Optional) Disable tensorflow warnings.
-    os.environ['AUTOGRAPH_VERBOSITY'] = '0'
+    # os.environ['AUTOGRAPH_VERBOSITY'] = '0'
     # SM Compatibility option with TF 2.0+
     os.environ["SM_FRAMEWORK"] = "tf.keras"
 
@@ -377,6 +378,7 @@ def analyse_photo(Image_Path, Image_Name):
     cfg = tf.compat.v1.ConfigProto()
     cfg.gpu_options.per_process_gpu_memory_fraction = 0.9
 
+    print(">>> Made it to 380")
 
     # import the necessary packages
     #import os
@@ -397,6 +399,8 @@ def analyse_photo(Image_Path, Image_Name):
     import skimage.segmentation
     import scipy.ndimage
 
+    print(">>> Made it to 401")
+
 
     # import the necessary packages
     #import tensorflow as tf
@@ -405,13 +409,17 @@ def analyse_photo(Image_Path, Image_Name):
 
     #-----------------------------------------------------------------------------
 
+    print(">>> Made it to 411")
+
     # (Optional) Enable growth CUDA if it gives issues.
-    os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
+    # os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
     # (Optional) Disable tensorflow warnings.
-    os.environ['AUTOGRAPH_VERBOSITY'] = '0'
+    # os.environ['AUTOGRAPH_VERBOSITY'] = '0'
     # Destroy plotted windows
     cv2.destroyAllWindows()
     plt.close('all')
+
+    print(">>> Made it to 421")
 
     #-----------------------------------------------------------------------------
 
