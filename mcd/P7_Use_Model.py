@@ -369,12 +369,15 @@ def analyse_photo(Image_Path, Image_Name):
     # (Optional) Enable CUDA growth if it gives issues.
     # os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
     os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'false'
+
     print(">>> Made it to 372")
     # (Optional) Disable tensorflow warnings.
     # os.environ['AUTOGRAPH_VERBOSITY'] = '0'
     # SM Compatibility option with TF 2.0+
     os.environ["SM_FRAMEWORK"] = "tf.keras"
 
+    # turn off the GPU being used for cloud services:
+    os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
     print(">>> Made it to 376")
 
     import tensorflow as tf
