@@ -9,7 +9,8 @@ django_countries
 pandas
 numpy
 opencv-python
-google-cloud-storage==1.41.0
+# google-cloud-storage==1.41.0
+google-cloud-storage
 google-cloud-vision
 tensorflow
 matplotlib
