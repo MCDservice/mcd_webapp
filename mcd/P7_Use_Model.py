@@ -450,26 +450,28 @@ def analyse_photo(Image_Path, Image_Name):
     #import shutil
 
     # Create complete path of folders
-    def CreatePath(FullPath,File=False):
-        Parts = pathlib.Path(FullPath).parts
-        for [n1,Folder] in enumerate(Parts):
-            if File==True and n1==len(Parts)-1 and "." in Parts[n1]:
-                continue
-            elif n1==0:
-                FolderPath = Parts[n1]
-            else:
-                FolderPath = os.path.join(FolderPath,Folder)
-            if os.path.exists(FolderPath)==False:
-                os.mkdir(FolderPath)
+    # (turn of path creation for cloud service usage ... )
+    # def CreatePath(FullPath,File=False):
+    #     Parts = pathlib.Path(FullPath).parts
+    #     for [n1,Folder] in enumerate(Parts):
+    #         if File==True and n1==len(Parts)-1 and "." in Parts[n1]:
+    #             continue
+    #         elif n1==0:
+    #             FolderPath = Parts[n1]
+    #         else:
+    #             FolderPath = os.path.join(FolderPath,Folder)
+    #         if os.path.exists(FolderPath)==False:
+    #             os.mkdir(FolderPath)
 
 
     # Delete folder
-    def DeleteFolder(FullPath):
-        FullPath = pathlib.Path(FullPath)
-        try:
-            shutil.rmtree(FullPath)
-        except:
-            pass
+    # (turn of path creation for cloud service usage ... )
+    # def DeleteFolder(FullPath):
+    #     FullPath = pathlib.Path(FullPath)
+    #     try:
+    #         shutil.rmtree(FullPath)
+    #     except:
+    #         pass
 
     #-----------------------------------------------------------------------------
 
@@ -568,9 +570,9 @@ def analyse_photo(Image_Path, Image_Name):
     AllPredictions_Path1 = os.path.join(AllPredictions_Path, "CV2")
     AllPredictions_Path2 = os.path.join(AllPredictions_Path, "PLT")
 
-    DeleteFolder(AllPredictions_Path)
-    CreatePath(AllPredictions_Path1)
-    CreatePath(AllPredictions_Path2)
+    # DeleteFolder(AllPredictions_Path)
+    # CreatePath(AllPredictions_Path1)
+    # CreatePath(AllPredictions_Path2)
 
     #-----------------------------------------------------------------------------
 
@@ -606,7 +608,10 @@ def analyse_photo(Image_Path, Image_Name):
     print(">>> Image_Path:", Image_Path)
     # Source = url_to_image(Image_Path)
     # Source = url_to_image("https://storage.cloud.google.com/mcd_file_storage/media/a_6_32")
-    Source = read_file("media/a_6_32")
+    # Source = read_file("media/a_6_32")
+    file_name = Image_Path.split("media/", 1)[1]
+    print(">>> Reading:", "media/"+file_name)
+    Source = read_file("media/"+file_name)
     List_Images = [["Original Image",np.copy(Source)]]
 
 
@@ -1000,11 +1005,16 @@ def analyse_photo(Image_Path, Image_Name):
     if Save_Output==True:
         # Store final mask
         BinMask_Path = os.path.join(Predictions_Path, Image_Name + ".png")
-        cv2.imwrite(BinMask_Path, FinalMask)
+
+        # don't save files locally for cloud services:
+        # cv2.imwrite(BinMask_Path, FinalMask)
+
         print("[INFO] Saved image to path: " + BinMask_Path)
         # Store plt figure
         Figure_Path = os.path.join(AllPredictions_Path, Image_Name + " (Fig).png")
-        plt.savefig(Figure_Path, dpi=my_dpi, bbox_inches = "tight")
+
+        # don't save files locally for cloud services:
+        # plt.savefig(Figure_Path, dpi=my_dpi, bbox_inches = "tight")
 
         # NEW
         save_memory_to_image_in_cloud(FinalMask, BinMask_Path)
@@ -1015,7 +1025,9 @@ def analyse_photo(Image_Path, Image_Name):
             # Save using CV2
             Temp_Path = os.path.join(AllPredictions_Path1, Image_Name + \
                         " (#" + str(n1) + " - " + Saved_Title + ").png")
-            cv2.imwrite(Temp_Path, Saved_Image)
+
+            # don't save files locally for cloud services:
+            # cv2.imwrite(Temp_Path, Saved_Image)
 
             # NEW
             save_memory_to_image_in_cloud(Saved_Image, Temp_Path)
@@ -1028,7 +1040,10 @@ def analyse_photo(Image_Path, Image_Name):
 
             Temp_Path = os.path.join(AllPredictions_Path2, Image_Name + \
                         " (#" + str(n1) + " - " + Saved_Title + ").png")
-            plt.imsave(Temp_Path,Saved_Image)
+
+            # don't save files locally for cloud services:
+            # plt.imsave(Temp_Path,Saved_Image)
+
             # save_memory_to_image_in_cloud(Saved_Image, Temp_Path)
             save_plt_to_image_in_cloud(Saved_Image, Temp_Path)
 
@@ -1039,7 +1054,9 @@ def analyse_photo(Image_Path, Image_Name):
         if Evaluate_Metrics==True:
             crack_length_path = os.path.join(AllPredictions_Path,'Sizes.csv')
             url_dict["crack_len_csv"] = crack_length_path.split('\\', 1)[1]
-            Df_Sizes.to_csv(crack_length_path, index=False)
+
+            # don't save files locally for cloud services:
+            # Df_Sizes.to_csv(crack_length_path, index=False)
 
             print(">>> writing to csv at path: ", crack_length_path)
             save_csv_to_cloud(Df_Sizes, crack_length_path)
