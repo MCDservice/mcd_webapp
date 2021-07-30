@@ -368,7 +368,7 @@ def analyse_photo(Image_Path, Image_Name):
     print(">>> Made it to 368")
     # (Optional) Enable CUDA growth if it gives issues.
     # os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
-    os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'false'
+    os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 
     print(">>> Made it to 372")
     # (Optional) Disable tensorflow warnings.
@@ -382,7 +382,7 @@ def analyse_photo(Image_Path, Image_Name):
 
     import tensorflow as tf
     cfg = tf.compat.v1.ConfigProto()
-    cfg.gpu_options.per_process_gpu_memory_fraction = 0.9
+    cfg.gpu_options.per_process_gpu_memory_fraction = 0.4
 
     print(">>> Made it to 380")
 
