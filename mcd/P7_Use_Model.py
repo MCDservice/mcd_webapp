@@ -382,7 +382,7 @@ def analyse_photo(Image_Path, Image_Name):
 
     import tensorflow as tf
     cfg = tf.compat.v1.ConfigProto()
-    cfg.gpu_options.per_process_gpu_memory_fraction = 0.4
+    cfg.gpu_options.per_process_gpu_memory_fraction = 0.01
 
     print(">>> Made it to 380")
 
@@ -395,9 +395,11 @@ def analyse_photo(Image_Path, Image_Name):
     import pathlib
     import numpy as np
     import pandas as pd
-    import tkinter as tk
+    
+    # import tkinter as tk
+    # (not using tkinter on google cloud)
     # import matplotlib.pyplot as plt
-    from tkinter import filedialog
+    # from tkinter import filedialog
 
     # import the necessary packages
     import skimage.morphology
@@ -529,23 +531,23 @@ def analyse_photo(Image_Path, Image_Name):
 
     #-----------------------------------------------------------------------------
 
-    # Do not change this section
-    if Image_Browser==True:
-        print("[INFO] Select Image File")
-        FDtitle = "Select Image File"
-        FDtypes = [("All Files", "*.*")]
-        # Launch selection window
-        root = tk.Tk(); root.withdraw(); root.update();
-        root.call('wm', 'attributes', '.', '-topmost', True)
-        FullPath = filedialog.askopenfilename(title=FDtitle, filetypes=FDtypes)
-        # Check if the input is appropriate
-        if len(FullPath)>=1:
-            Image_Path = FullPath
-            print("[INFO] Selected File:",FullPath)
-        else:
-            print("[INFO] No File Selected")
-            print("[INFO] Program Finished")
-            sys.exit()
+    # (file browser disabled for google cloud services)
+    # if Image_Browser==True:
+    #     print("[INFO] Select Image File")
+    #     FDtitle = "Select Image File"
+    #     FDtypes = [("All Files", "*.*")]
+    #     # Launch selection window
+    #     root = tk.Tk(); root.withdraw(); root.update();
+    #     root.call('wm', 'attributes', '.', '-topmost', True)
+    #     FullPath = filedialog.askopenfilename(title=FDtitle, filetypes=FDtypes)
+    #     # Check if the input is appropriate
+    #     if len(FullPath)>=1:
+    #         Image_Path = FullPath
+    #         print("[INFO] Selected File:",FullPath)
+    #     else:
+    #         print("[INFO] No File Selected")
+    #         print("[INFO] Program Finished")
+    #         sys.exit()
 
     #-----------------------------------------------------------------------------
 
