@@ -670,8 +670,8 @@ def analyse_photo(Image_Path, Image_Name):
 
         # temp_model_location = './temp_model.h5'
 
-        from pathlib import Path
-        Path("tmp/").mkdir(parents=True, exist_ok=True)
+        # from pathlib import Path
+        # Path("tmp/").mkdir(parents=True, exist_ok=True)
 
         print("WRITING TO FILE")
 
