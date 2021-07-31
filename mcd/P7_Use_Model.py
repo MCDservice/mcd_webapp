@@ -739,20 +739,20 @@ def analyse_photo(Image_Path, Image_Name):
         #     temp_model.write(model_file.read())
         #     model = tf.keras.models.load_model(temp_model)
 
-    print("Model path: ", Model_Path, Model_Path.split("mcd_file_storage\\", 1)[1])
+    print("Model path: ", Model_Path, Model_Path.split("mcd_file_storage/", 1)[1])
     try:
-        model  = read_model_file(Model_Path.split("mcd_file_storage\\", 1)[1])
+        model  = read_model_file(Model_Path.split("mcd_file_storage/", 1)[1])
         # model = load_model(Model_Path, compile=False, custom_objects={'tf': tf})
         print("[INFO] Loaded Full Model")
     except:
-        model = load_json_model_from_cloud(JModel_Path.split("mcd_file_storage\\", 1)[1])
+        model = load_json_model_from_cloud(JModel_Path.split("mcd_file_storage/", 1)[1])
         # json_file = open(JModel_Path, 'r')
         # loaded_model_json = json_file.read()
         # json_file.close()
         # model = model_from_json(loaded_model_json, custom_objects={'tf': tf})
         # model.load_weights(Model_Path)
         
-        temp_model_location = load_weights_from_cloud(model, Model_Path.split("mcd_file_storage\\", 1)[1])
+        temp_model_location = load_weights_from_cloud(model, Model_Path.split("mcd_file_storage/", 1)[1])
         model.load_weights(temp_model_location)
         print("loaded the weights")
         
