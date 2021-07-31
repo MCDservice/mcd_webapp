@@ -1,5 +1,6 @@
 import base64
 import io
+import json
 import os
 
 from urllib.request import urlopen
@@ -28,7 +29,6 @@ def save_memory_to_image_in_cloud(data, location, media=False, colour=False):
     # ... change all '\' (if any) to '/'
     location = location.replace('\\', '/')
     client = storage.Client()
-
     bucket = client.get_bucket(conf_settings.GOOGLE_CLOUD_STORAGE_BUCKET)
 
     with TemporaryFile() as gcs_image:
@@ -115,6 +115,7 @@ def save_to_cloud(file_to_upload, filename, media=False):
         # content_type=uploaded_file.content_type
     )
 
+
 def read_file(filename, readFlag=cv2.IMREAD_COLOR):
     import io
     import numpy as np
@@ -152,6 +153,7 @@ def url_to_image(url, readFlag=cv2.IMREAD_COLOR):
     # return the image
     return image
 
+
 def analyse_photo(Image_Path, Image_Name):
     #=============================================================================
     #                PROGRAM: USE CNN MODEL (SEMANTIC SEGMENTATION)
@@ -183,17 +185,27 @@ def analyse_photo(Image_Path, Image_Name):
     # JModel_Path += "Blocks2_198_(Model).json"
 
     # new model:
-    Model_Path = "C://Users//Dom//Documents//3-Year//2021-Internship//" \
-                  "pretrained-model//model for crack detection//" \
-                  "142_epoch_45_f1_m_dil_0.796.h5"
+    # Model_Path = "C://Users//Dom//Documents//3-Year//2021-Internship//" \
+    #               "pretrained-model//model for crack detection//" \
+    #               "142_epoch_45_f1_m_dil_0.796.h5"
+
+    Model_Path = "https://storage.cloud.google.com/" \
+                 "mcd_file_storage/pretrained-model/" \
+                 "model-for-crack-detection/142_epoch_45_f1_m_dil_0.796.h5"
+
     #
     # JModel_Path5 = "C://Users//Dom//Documents//3-Year//2021-Internship//" \
     #                "crack_detection_CNN_masonry//output//model_json//" \
     #                "crack_detection_44072.json"
 
-    JModel_Path = "C://Users//Dom//Documents//3-Year//2021-Internship//" \
-                   "pretrained-model//model for crack detection//" \
-                   "my_dataset_VGG16_FCN_142.json"
+    # JModel_Path = "C://Users//Dom//Documents//3-Year//2021-Internship//" \
+    #                "pretrained-model//model for crack detection//" \
+    #                "my_dataset_VGG16_FCN_142.json"
+
+    JModel_Path = "https://storage.cloud.google.com/" \
+                  "mcd_file_storage/pretrained-model/" \
+                  "model-for-crack-detection/" \
+                  "my_dataset_VGG16_FCN_142.json"
 
     # Output_Path = "Output//Images"
     Output_Path = "media"
@@ -590,17 +602,163 @@ def analyse_photo(Image_Path, Image_Name):
 
     #-----------------------------------------------------------------------------
 
+    def read_model_file(storage_location):
+        import numpy as np
+        from google.cloud import storage
+
+        # since google cloud uses '/' to indicate directories, ...
+        # ... change all '\' (if any) to '/'
+        storage_location = storage_location.replace('\\', '/')
+
+        print(">>> Reading file ", storage_location, " Blob from bucket ...")
+
+        client = storage.Client()
+        bucket = client.get_bucket(conf_settings.GOOGLE_CLOUD_STORAGE_BUCKET)
+
+        blob = bucket.blob(storage_location)
+
+
+        img_as_string = blob.download_as_bytes()
+        # img_as_string = blob.download_as_text()
+        # print("... the read file looks like this: ", img_as_string )
+
+        with TemporaryFile() as temp_model:
+            # temp_model_location = './temp_model.h5'
+            # temp_model = open(temp_model_location, 'wb')
+            temp_model.write(img_as_string)
+            model = tf.keras.models.load_model(img_as_string)
+
+        return model
+
+    def load_json_model_from_cloud(storage_location):
+        import numpy as np
+        from google.cloud import storage
+
+        # since google cloud uses '/' to indicate directories, ...
+        # ... change all '\' (if any) to '/'
+        storage_location = storage_location.replace('\\', '/')
+
+        print(">>> Reading file ", storage_location, " Blob from bucket ...")
+
+        client = storage.Client()
+        bucket = client.get_bucket(conf_settings.GOOGLE_CLOUD_STORAGE_BUCKET)
+        print("bucket:", bucket)
+
+        blob = bucket.blob(storage_location)
+        print("blob:", blob)
+
+        img_as_string = blob.download_as_text()
+
+        loaded_model_json = json.loads(img_as_string)
+        print("1) loaded_model_json", loaded_model_json)
+        # img_as_string = blob.download_as_text()
+        # print("... the read file looks like this: ", img_as_string )
+
+        model = tf.keras.models.model_from_json(img_as_string)
+
+        return model
+
+    def load_weights_from_cloud(model, storage_location):
+        storage_location = storage_location.replace('\\', '/')
+
+        client = storage.Client()
+        bucket = client.get_bucket(conf_settings.GOOGLE_CLOUD_STORAGE_BUCKET)
+
+        blob = bucket.blob(storage_location)
+
+        img_as_string = blob.download_as_bytes()
+
+        # temp_model_location = './temp_model.h5'
+
+        from pathlib import Path
+        Path("tmp/").mkdir(parents=True, exist_ok=True)
+
+        print("WRITING TO FILE")
+
+        path = "C:\\Users\\Dom\\AppData\\Local\\Google\\Cloud SDK\\mcd_webapp\\mcd\\"
+        temp_model_location = 'tmp_weights.h5'
+
+        try:
+            with open(path+temp_model_location, 'wb') as temp_model_file:
+                temp_model_file.write(img_as_string)
+                temp_model_file.flush()
+        except:
+            with open("/tmp/temp.h5", 'w+b') as temp_model_file:
+                temp_model_location = "/tmp/temp.h5"
+                temp_model_file.write(img_as_string)
+                temp_model_file.flush()
+
+        # temp_model_file = open(temp_model_location, 'w+b')
+        # temp_model_file.close()
+        # model_file.close()
+
+        # model = model.load_weights(temp_model_file.name)
+        return temp_model_location
+
+        # model.load_weights(temp_model_location)
+        # print("loaded the weights")
+
+        # # with TemporaryFile() as temp_model_file:
+        # import tempfile
+        # # with tempfile.NamedTemporaryFile(suffix='.h5', prefix=os.path.basename(__file__)) \
+        # #         as temp_model_file:
+        # with tempfile.NamedTemporaryFile(mode='w+b', suffix='.h5', prefix='tmp', dir=None, delete=True) \
+        #     as temp_model_file:
+        #     # temp_model_location = './temp_model.h5'
+        #     # temp_model_file = open(temp_model_location, 'wb')
+        #     temp_model_file.write(img_as_string)
+        #     # temp_model_file.close()
+        #     # model_file.close()
+        #
+        #     model = model.load_weights(temp_model_file.name)
+
+        return model_new
+
     # Load CNN model
+    # try:
+        # model = load_model(Model_Path, compile=False, custom_objects={'tf': tf})
+        # print("[INFO] Loaded Full Model")
+    # except:
+        # json_file = open(JModel_Path, 'r')
+        # loaded_model_json = json_file.read()
+        # json_file.close()
+        # model = model_from_json(loaded_model_json, custom_objects={'tf': tf})
+        # model.load_weights(Model_Path)
+        # print("[INFO] Loaded Json Model")
+
+    # Load CNN model
+    # try:
+        # 1. Load the file from gs storage
+        # from tensorflow.python.lib.io import file_io
+        # model_file = file_io.FileIO('gs://mcd_file_storage/pretrained-model/model-for-crack-detection/142_epoch_45_f1_m_dil_0.796.h5', mode='rb')
+        #
+        # #  2. Save a temporary copy of the model
+        # with TemporaryFile() as temp_model:
+        #     # temp_model_location = './temp_model.h5'
+        #     # temp_model = open(temp_model_location, 'wb')
+        #     temp_model.write(model_file.read())
+        #     model = tf.keras.models.load_model(temp_model)
+
+    print("Model path: ", Model_Path, Model_Path.split("mcd_file_storage\\", 1)[1])
     try:
-        model = load_model(Model_Path, compile=False, custom_objects={'tf': tf})
+        model  = read_model_file(Model_Path.split("mcd_file_storage\\", 1)[1])
+        # model = load_model(Model_Path, compile=False, custom_objects={'tf': tf})
         print("[INFO] Loaded Full Model")
     except:
-        json_file = open(JModel_Path, 'r')
-        loaded_model_json = json_file.read()
-        json_file.close()
-        model = model_from_json(loaded_model_json, custom_objects={'tf': tf})
-        model.load_weights(Model_Path)
+        model = load_json_model_from_cloud(JModel_Path.split("mcd_file_storage\\", 1)[1])
+        # json_file = open(JModel_Path, 'r')
+        # loaded_model_json = json_file.read()
+        # json_file.close()
+        # model = model_from_json(loaded_model_json, custom_objects={'tf': tf})
+        # model.load_weights(Model_Path)
+        
+        temp_model_location = load_weights_from_cloud(model, Model_Path.split("mcd_file_storage\\", 1)[1])
+        model.load_weights(temp_model_location)
+        print("loaded the weights")
+        
         print("[INFO] Loaded Json Model")
+
+    print("[SUCCESS]")
 
 
     # Load image
