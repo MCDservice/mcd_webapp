@@ -1206,12 +1206,14 @@ def analyse_photo(Image_Path, Image_Name):
             save_plt_to_image_in_cloud(Saved_Image, Temp_Path)
 
 
-            url_dict[Saved_Title] = Temp_Path.split('\\', 1)[1]
+            # url_dict[Saved_Title] = Temp_Path.split('\\', 1)[1]
+            url_dict[Saved_Title] = Temp_Path.split('/', 1)[1]
 
         # Save segmentation properties
         if Evaluate_Metrics==True:
             crack_length_path = os.path.join(AllPredictions_Path,'Sizes.csv')
-            url_dict["crack_len_csv"] = crack_length_path.split('\\', 1)[1]
+            # url_dict["crack_len_csv"] = crack_length_path.split('\\', 1)[1]
+            url_dict["crack_len_csv"] = crack_length_path.split('/', 1)[1]
 
             # don't save files locally for cloud services:
             # Df_Sizes.to_csv(crack_length_path, index=False)

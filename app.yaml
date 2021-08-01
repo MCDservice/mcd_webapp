@@ -18,4 +18,4 @@ env_variables:
     CLOUD_STORAGE_BUCKET: mcd_file_storage
 
 instance_class:
-  F4
+  F4_1G

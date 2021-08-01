@@ -415,7 +415,8 @@ class EnqueuePhotoAnalysis(threading.Thread):
         # csv_cloud_url = conf_settings.MEDIA_URL + crack_len_url.replace('\\', '/')
         csv_cloud_url = 'gs://'+conf_settings.GOOGLE_CLOUD_STORAGE_BUCKET+"/media/"+crack_len_url.replace('\\', '/')
         print(">>> reading csv from URL: ", csv_cloud_url )
-        sizes = pd.read_csv(csv_cloud_url, sep=",", lineterminator='\r')
+        # sizes = pd.read_csv(csv_cloud_url, sep=",", lineterminator='\r')
+        sizes = pd.read_csv(csv_cloud_url, sep=",", lineterminator='\n')
         print(">  >  > dataframe: ", list(sizes))
         t.crack_length = float(sizes["Length (pxls)"].max())
 
