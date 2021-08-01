@@ -266,6 +266,14 @@ margin: 0 !important;
     display: block;
 }
 
+.display-true{
+    display: block;
+}
+
+.display-false{
+    display: none;
+}
+
 /*img{*/
 /*    height: 1000px;*/
 /*}*/

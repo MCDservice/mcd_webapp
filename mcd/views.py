@@ -208,6 +208,21 @@ class ObjectDetailsView(generic.DetailView):
     #     # return only the objects that match the current user logged in:
     #     return MCD_Project.objects.filter(project_id=images_in_object)
 
+
+def read_csv_from_cloud(csv_filename, newline_char):
+    csv_cloud_url = 'gs://' + conf_settings.GOOGLE_CLOUD_STORAGE_BUCKET + "/media/" + csv_filename.replace(
+        '\\', '/')
+    print(">>> reading csv from URL: ", csv_cloud_url)
+
+
+    processed_csv = pd.read_csv(csv_cloud_url, sep=",", lineterminator=newline_char)
+
+    print(">  >  > dataframe: ", list(processed_csv))
+    print(">  >  > last heading: ", list(processed_csv)[-1])
+
+    return processed_csv
+
+
 class RecordComparison1View(generic.DetailView):
     model = MCD_Record
     # change the name to refer to photo analysis
@@ -215,7 +230,23 @@ class RecordComparison1View(generic.DetailView):
     context_object_name = 'record'
     template_name = 'mcd/detailed_record_comparison1.html'
 
+    # get template name depending on which comparison option is chosen:
+    def get_template_names(self):
+        if self.kwargs["comparison"] == "comparison1":
+            return ['mcd/detailed_record_comparison1.html']
+        elif self.kwargs["comparison"] == "comparison2":
+            return ['mcd/detailed_record_comparison2.html']
+        else:
+            return ['mcd/detailed_record_comparison1.html']
+
+
     # current_object
+    # def __init__(self, **kwargs):
+    #     # super().__init__(**kwargs)
+    #     if kwargs["comparison"] == "comparison1":
+    #         template_name = 'mcd/detailed_record_comparison1.html'
+    #     elif kwargs["comparison"] == "comparison2":
+    #         template_name = 'mcd/detailed_record_comparison2.html'
 
     def get_context_data(self, **kwargs):
         # get current object primary key (id):
@@ -256,11 +287,15 @@ class RecordComparison1View(generic.DetailView):
         sorted_ids = []
         # get biggest crack length:
         try:
-            crack_labels_csv = pd.read_csv(display_image_1.crack_labels_csv)
+            print(">>> Reading detailed crack information from", display_image_1.crack_labels_csv)
+            relative_csv_path = get_cloud_relative_path_from_folder("media", display_image.crack_labels_csv.url)
+            crack_labels, crack_locations, crack_lengths = get_crack_info_from_cloud_csv(relative_csv_path)
 
-            crack_labels = crack_labels_csv["Label"].astype(int)
-            crack_locations = crack_labels_csv["Loc (x,y)"].apply(list_literal_eval)
-            crack_lengths = crack_labels_csv["Length (pxls)"].astype(int)
+            # crack_labels_csv = pd.read_csv(display_image_1.crack_labels_csv)
+            # crack_labels_csv = read_csv_from_cloud(display_image_1.crack_labels_csv)
+            # crack_labels = crack_labels_csv["Label"].astype(int)
+            # crack_locations = crack_labels_csv["Loc (x,y)"].apply(list_literal_eval)
+            # crack_lengths = crack_labels_csv["Length (pxls)"].astype(int)
 
             # (negation to sort in descending order!)
             sorted_ids = np.argsort(-crack_lengths)
@@ -291,6 +326,52 @@ class RecordComparison1View(generic.DetailView):
         data['comparison']        = comparison
         data['comparison_method'] = comparison_method
         return data
+
+
+def get_local_relative_path_from_folder(folder, url):
+    print("got url", url)
+    return url.split(os.path.join(folder, ''), 1)[1]
+
+def get_cloud_relative_path_from_folder(folder, url):
+    print("got url", url)
+    return url.split(folder+'/', 1)[1]
+
+
+def get_crack_info_from_cloud_csv(relative_csv_path):
+    crack_labels = []
+    crack_locations = []
+    crack_lengths = []
+
+    def list_literal_eval(x):
+        import ast
+        return ast.literal_eval(x)
+    # [interoperability]
+    # Google Cloud uses Unix-like operating system use \n for new lines, ...
+    # ... whereas for testing locally, \r might be used:
+    # (in such cases, the heading index becomes:
+    # 'Length (pxls)\r' or 'Length (pxls)\n', instead of 'Length (pxls)' ...
+    # ... which gives a KeyError
+    try:
+        # processed_csv = pd.read_csv(csv_cloud_url, sep=",", lineterminator='\n')
+        crack_labels_csv = read_csv_from_cloud(relative_csv_path, '\n')
+        crack_labels = crack_labels_csv["Label"].astype(int)
+        crack_locations = crack_labels_csv["Loc (x,y)"].apply(list_literal_eval)
+        crack_lengths = crack_labels_csv["Length (pxls)"].astype(int)
+    except KeyError:
+        crack_labels_csv = read_csv_from_cloud(relative_csv_path, '\r')
+        # for '\r\n', pandas does not support multi-character line-terminators ...
+        # ... therefore, a workaround is needed - splitting on \r and then removing leftover \n
+        # https://stackoverflow.com/questions/53844875/how-to-deal-with-multi-value-lineterminators-in-pandas
+        crack_labels_csv.iloc[:, 0] = crack_labels_csv.iloc[:, 0].str.lstrip()
+        crack_labels_csv.dropna(inplace=True)  # removes empty lines
+
+        crack_labels = crack_labels_csv["Label"].astype(int)
+        crack_locations = crack_labels_csv["Loc (x,y)"].apply(list_literal_eval)
+        crack_lengths = crack_labels_csv["Length (pxls)"].astype(int)
+        # processed_csv = pd.read_csv(csv_cloud_url, sep=",", lineterminator='\r')
+
+    return crack_labels, crack_locations, crack_lengths
+
 
 class RecordDetailsView(generic.DetailView):
     model = MCD_Record
@@ -327,29 +408,25 @@ class RecordDetailsView(generic.DetailView):
         #  Example: mcd/record/19/image-85/
         try:
             display_image = MCD_Photo_Analysis.objects.get(pk=self.kwargs['image_pk'])
+            display_image_2 = images_in_record.earliest('datetime_uploaded')
         except:
             display_image = images_in_record.latest('datetime_uploaded')
+            display_image_2 = images_in_record.earliest('datetime_uploaded')
 
-
-        def list_literal_eval(x):
-            import ast
-            return ast.literal_eval(x)
-
+        sorted_ids = []
         crack_labels = []
         crack_locations = []
         crack_lengths = []
-        sorted_ids = []
         # get biggest crack length:
+        # try:
+        # crack_labels_csv = pd.read_csv(display_image.crack_labels_csv)
         try:
-            crack_labels_csv = pd.read_csv(display_image.crack_labels_csv)
-
-            crack_labels = crack_labels_csv["Label"].astype(int)
-            crack_locations = crack_labels_csv["Loc (x,y)"].apply(list_literal_eval)
-            crack_lengths = crack_labels_csv["Length (pxls)"].astype(int)
-
+            relative_csv_path = get_cloud_relative_path_from_folder("media", display_image.crack_labels_csv.url)
+            crack_labels, crack_locations, crack_lengths = get_crack_info_from_cloud_csv(relative_csv_path)
             # (negation to sort in descending order!)
             sorted_ids = np.argsort(-crack_lengths)
-        except:
+        except ValueError:
+            # The 'crack_labels_csv' attribute has no file associated with it.
             pass
 
         comparison = False
@@ -365,6 +442,7 @@ class RecordDetailsView(generic.DetailView):
         data = super().get_context_data(**kwargs)
         data['images_of_record']  = images_in_record.reverse()
         data['display_image']     = display_image
+        data['display_image_2']   = display_image_2
         data['display_cm']        = display_cm_list
         data['longest_crack']     = biggest_crack_length_list
         data['crack_labels']      = crack_labels
@@ -415,10 +493,21 @@ class EnqueuePhotoAnalysis(threading.Thread):
         # csv_cloud_url = conf_settings.MEDIA_URL + crack_len_url.replace('\\', '/')
         csv_cloud_url = 'gs://'+conf_settings.GOOGLE_CLOUD_STORAGE_BUCKET+"/media/"+crack_len_url.replace('\\', '/')
         print(">>> reading csv from URL: ", csv_cloud_url )
-        # sizes = pd.read_csv(csv_cloud_url, sep=",", lineterminator='\r')
-        sizes = pd.read_csv(csv_cloud_url, sep=",", lineterminator='\n')
+
+        # [interoperability]
+        # Google Cloud uses Unix-like operating system use \n for new lines, ...
+        # ... whereas for testing locally, \r might be used:
+        # (in such cases, the heading index becomes:
+        # 'Length (pxls)\r' or 'Length (pxls)\n', instead of 'Length (pxls)' ...
+        # ... which gives a KeyError 3
+        try:
+            sizes = pd.read_csv(csv_cloud_url, sep=",", lineterminator='\n')
+            t.crack_length = float(sizes["Length (pxls)"].max())
+        except KeyError:
+            sizes = pd.read_csv(csv_cloud_url, sep=",", lineterminator='\r')
+            t.crack_length = float(sizes["Length (pxls)"].max())
+
         print(">  >  > dataframe: ", list(sizes))
-        t.crack_length = float(sizes["Length (pxls)"].max())
 
         # after the photo has been analysed ...
         t.output_photo       = output_photo_url  # change field

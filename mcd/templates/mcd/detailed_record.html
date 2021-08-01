@@ -154,10 +154,14 @@
                     </a>
                     <ul class="collapse list-unstyled" id="homeSubmenu">
                         <li>
-                            <a href="#">Side-by-side</a>
+                            <a href="{% url 'mcd:detailed_record_compare1' record.id 'comparison1'  display_image.id display_image_2.id %}">
+                                Side-by-side
+                            </a>
                         </li>
                         <li>
-                            <a href="#">Switching</a>
+                            <a href="{% url 'mcd:detailed_record_compare1' record.id 'comparison2'  display_image.id display_image_2.id %}">
+                                Switching
+                            </a>
                         </li>
                     </ul>
                 </li>

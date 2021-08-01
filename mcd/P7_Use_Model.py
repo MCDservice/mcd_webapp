@@ -712,7 +712,7 @@ def analyse_photo(Image_Path, Image_Name):
         #
         #     model = model.load_weights(temp_model_file.name)
 
-        return model_new
+        # return model_new
 
     # Load CNN model
     # try:
@@ -739,23 +739,23 @@ def analyse_photo(Image_Path, Image_Name):
         #     temp_model.write(model_file.read())
         #     model = tf.keras.models.load_model(temp_model)
 
-    print("Model path: ", Model_Path, Model_Path.split("mcd_file_storage/", 1)[1])
+
+    relative_model_path      = Model_Path.split(os.path.join("mcd_file_storage", ''), 1)[1]
+    relative_json_model_path = JModel_Path.split(os.path.join("mcd_file_storage", ''), 1)[1]
+
+    print("Model path: ", Model_Path, Model_Path.split(os.path.join("mcd_file_storage", ''), 1)[1])
+    print("Relative Model path: ", relative_model_path)
     try:
-        model  = read_model_file(Model_Path.split("mcd_file_storage/", 1)[1])
+        model  = read_model_file(relative_model_path)
         # model = load_model(Model_Path, compile=False, custom_objects={'tf': tf})
         print("[INFO] Loaded Full Model")
     except:
-        model = load_json_model_from_cloud(JModel_Path.split("mcd_file_storage/", 1)[1])
-        # json_file = open(JModel_Path, 'r')
-        # loaded_model_json = json_file.read()
-        # json_file.close()
-        # model = model_from_json(loaded_model_json, custom_objects={'tf': tf})
-        # model.load_weights(Model_Path)
-        
-        temp_model_location = load_weights_from_cloud(model, Model_Path.split("mcd_file_storage/", 1)[1])
+        model = load_json_model_from_cloud(relative_json_model_path)
+
+        temp_model_location = load_weights_from_cloud(model, relative_model_path)
         model.load_weights(temp_model_location)
-        print("loaded the weights")
-        
+
+        print("[INFO] Loaded the model weights")
         print("[INFO] Loaded Json Model")
 
     print("[SUCCESS]")
@@ -1205,15 +1205,25 @@ def analyse_photo(Image_Path, Image_Name):
             # save_memory_to_image_in_cloud(Saved_Image, Temp_Path)
             save_plt_to_image_in_cloud(Saved_Image, Temp_Path)
 
-
-            # url_dict[Saved_Title] = Temp_Path.split('\\', 1)[1]
-            url_dict[Saved_Title] = Temp_Path.split('/', 1)[1]
+            # [interoperability]
+            # Google Cloud uses Unix-like operating system, "/", ...
+            # ... whereas for testing locally, "\" might be used:
+            try:
+                url_dict[Saved_Title] = Temp_Path.split('/', 1)[1]
+            except IndexError:
+                url_dict[Saved_Title] = Temp_Path.split('\\', 1)[1]
 
         # Save segmentation properties
         if Evaluate_Metrics==True:
             crack_length_path = os.path.join(AllPredictions_Path,'Sizes.csv')
-            # url_dict["crack_len_csv"] = crack_length_path.split('\\', 1)[1]
-            url_dict["crack_len_csv"] = crack_length_path.split('/', 1)[1]
+
+            # [interoperability]
+            # Google Cloud uses Unix-like operating system, "/", ...
+            # ... whereas for testing locally, "\" might be used:
+            try:
+                url_dict["crack_len_csv"] = crack_length_path.split('/', 1)[1]
+            except IndexError:
+                url_dict["crack_len_csv"] = crack_length_path.split('\\', 1)[1]
 
             # don't save files locally for cloud services:
             # Df_Sizes.to_csv(crack_length_path, index=False)
