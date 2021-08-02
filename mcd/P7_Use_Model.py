@@ -773,7 +773,7 @@ def analyse_photo(Image_Path, Image_Name):
     List_Images = [["Original Image",np.copy(Source)]]
 
 
-    Image = np.copy(Source)
+    Image = np.copy(Source)[:,:,:3]
     print("image right now: ", Image, " its shape: ", Image.shape)
 
     # Adjust size of images with very small/high resolutions
@@ -838,6 +838,7 @@ def analyse_photo(Image_Path, Image_Name):
             x1 = n2 * xw; x1a = x1 + Overlap
             x2 = x1 + xo; x2a = x2 - Overlap
             # Extract part from image
+            # Part = Image[y1:y2,x1:x2]
             Part = Image[y1:y2,x1:x2]
             AdjPart = np.array([Part/255])
             PartPred = model.predict(AdjPart)
@@ -1039,7 +1040,7 @@ def analyse_photo(Image_Path, Image_Name):
 
     # Create overlay image
     if Create_Overlay==True:
-        Overlay = np.copy(Source)
+        Overlay = np.copy(Source)[:,:,:3]
         TrMask = np.copy(FinalMask)
         TrMask = np.dstack([TrMask, TrMask, TrMask])
         TrMask[FinalMask!=0] = Overlay_Colour

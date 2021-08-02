@@ -172,6 +172,7 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media') # on the computer
 # MEDIA_URL = '/media/' # relative URL - for browsers to access files over HTTP
 
 GOOGLE_CLOUD_STORAGE_BUCKET = 'mcd_file_storage'
-MEDIA_URL = 'https://storage.cloud.google.com/mcd_file_storage/media/'
+# MEDIA_URL = 'https://storage.cloud.google.com/mcd_file_storage/media/'
+MEDIA_URL = 'https://storage.googleapis.com/mcd_file_storage/media/'
 # MEDIA_ROOT = 'https://storage.cloud.google.com/mcd_file_storage/media/'
-
+MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'

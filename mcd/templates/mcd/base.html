@@ -88,7 +88,8 @@
                     {% if user.is_authenticated %}
                         <li>
                             <div class="btn-group">
-                              <button type="button" class="btn mcd-button no-padding-right">
+                              <button type="button" class="btn mcd-button no-padding-right dropdown-toggle dropdown-toggle-split"
+                                      data-toggle="dropdown">
                                   <span class="glyphicon glyphicon-plus" aria-hidden="true"></span>&nbsp
                                   Add Analysis
                               </button>
@@ -118,25 +119,35 @@
                         </li>
                     {% endif %}
 
-                    <li class="">
-                        {% if user.is_authenticated %}
-                            <form class="logout-link" action="{% url 'mcd:logout' %}" method="post">
-                                {% csrf_token %}
+                    <li class="limit-height">
+                        <div class="floating-wrapper">
+                            {% if user.is_authenticated %}
+                                <form class="logout-link" action="{% url 'mcd:logout' %}" method="post">
+                                    {% csrf_token %}
 
-                                    <button class="btn mcd-button " type="submit">
-                                        <span class="glyphicon glyphicon-off" aria-hidden="true"></span>&nbsp
-                                        Logout | {{ user.username }}
+                                        <button class="btn mcd-button " type="submit">
+                                            <span class="glyphicon glyphicon-log-out" aria-hidden="true"></span>&nbsp
+                                            Logout | {{ user.username }}
+                                        </button>
+                                </form>
+                            {% else %}
+                                <form class="login-link" action="{% url 'mcd:login' %}" method="get">
+                                    {% csrf_token %}
+                                    <button class="btn mcd-button" type="submit">
+                                        <span class="glyphicon glyphicon-log-in" aria-hidden="true"></span>&nbsp
+                                        Log In
                                     </button>
-                            </form>
-                        {% else %}
-                            <form class="login-link" action="{% url 'mcd:login' %}" method="get">
-                                {% csrf_token %}
-                                <button class="btn mcd-button" type="submit">
-                                    <span class="glyphicon glyphicon-off" aria-hidden="true"></span>&nbsp
-                                    Log In
-                                </button>
-                            </form>
-                        {% endif %}
+                                </form>
+                                <form class="login-link" action="{% url 'mcd:register' %}" method="get">
+                                    {% csrf_token %}
+                                    <button class="btn mcd-button" type="submit">
+                                        <span class="glyphicon glyphicon-user" aria-hidden="true"></span>&nbsp
+                                        Register
+                                    </button>
+                                </form>
+                            {% endif %}
+
+                        </div>
                     </li>
                 </ul>
 

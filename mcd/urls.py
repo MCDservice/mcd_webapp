@@ -35,7 +35,8 @@ urlpatterns = [
         name='detailed_object'),
 
     # /mcd/object/ID/ (detailed view of the records)
-    url(r'^record/(?P<pk>[0-9]+)/$', views.RecordDetailsView.as_view(),
+    url(r'^record/(?P<pk>[0-9]+)/$', # login_required(login_url="/mcd/login"),
+        views.RecordDetailsView.as_view(),
         name='detailed_record'),
 
     # /mcd/object/ID/ (detailed view of the records)

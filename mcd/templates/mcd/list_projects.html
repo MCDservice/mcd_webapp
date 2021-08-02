@@ -8,6 +8,18 @@
         <ul class="list-group">
 {#       variable 'user_objects' is defined in views.py ... #}
 {#       ... class 'ListAllObjectsView', variable 'context_object_name' #}
+
+        {% if messages %}
+            {% for message in messages %}
+                <div {% if message.tags %} class="alert alert-{{ message.tags }}"{% endif %}>
+                    Project <b>{{ message }}</b> successfully created!
+                </div>
+            {% endfor %}
+{#            <div class="alert alert-success" role="alert">#}
+{#              Project {{  }} Created!#}
+{#            </div>#}
+        {% endif %}
+
         {% for object in user_objects %}
 
                 <li class="list-group-item">

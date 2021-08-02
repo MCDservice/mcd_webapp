@@ -68,31 +68,27 @@
                     {% if user.is_authenticated %}
                         <li>
                             <div class="btn-group">
-                              <button type="button" class="btn mcd-button no-padding-right">
+                              <button type="button" class="btn mcd-button no-padding-right dropdown-toggle dropdown-toggle-split"
+                                      data-toggle="dropdown">
                                   <span class="glyphicon glyphicon-plus" aria-hidden="true"></span>&nbsp
                                   Add Analysis
                               </button>
                               <button type="button" class="btn mcd-button dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                 <span class="caret"></span>
                               </button>
-                              <ul class="dropdown-menu">
+                              <ul class="dropdown-menu dark-background">
                                   <li>
-                                      <a href="{% url 'mcd:project-add' %}">
+                                      <a class="text-grey" href="{% url 'mcd:project-add' %}">
                                           <span class="glyphicon glyphicon-home" aria-hidden="true"></span>&nbsp
                                           Add New Project
                                       </a>
                                   </li>
                                   <li>
-                                      <a href="{% url 'mcd:upload' %}">
+                                      <a class="text-grey" href="{% url 'mcd:upload' %}">
                                           <span class="glyphicon glyphicon-picture" aria-hidden="true"></span>&nbsp
                                           Upload Image for Analysis
                                       </a>
                                   </li>
-{#                                  <a class="dropdown-item" href="#">Action</a>#}
-{#                                  <a class="dropdown-item" href="#">Another action</a>#}
-{#                                  <a class="dropdown-item" href="#">Something else here</a>#}
-{#                                  <div class="dropdown-divider"></div>#}
-{#                                  <a class="dropdown-item" href="#">Separated link</a>#}
                               </ul>
                             </div>
                         </li>

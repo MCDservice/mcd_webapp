@@ -20,7 +20,7 @@
 {#                          if the user is to be redirected after logging in ... #}
 {#                          ... (to a page other than index/main)  #}
                             {% if request.GET.next %}
-                                <h2>test worked {{ request.GET.next }}</h2>
+                                <h2>Please Log In to access the page {{ request.GET.next }}</h2>
                                 <input type="hidden" name="next" value="{{ request.GET.next }}">
 {#                               on submit, we will send a post request with 'value' specified #}
                             {% endif %}

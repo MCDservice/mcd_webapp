@@ -274,6 +274,10 @@ margin: 0 !important;
     display: none;
 }
 
+.limit-height{
+    height: 53px;
+}
+
 /*img{*/
 /*    height: 1000px;*/
 /*}*/

@@ -5,7 +5,7 @@
 {% endblock %}
 {% block body %}
     <h1>Results for Analysis ID '{{ photo_analysis.id }}'</h1>
-    <h2>Input Image:</h2>
+    <h2>Input Image: {{ photo_analysis.input_photo }} </h2>
     <img src="{{ photo_analysis.input_photo.url }}">
 
     <h2>Output Image:</h2>

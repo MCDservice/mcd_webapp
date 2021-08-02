@@ -13,6 +13,10 @@ from google.cloud import storage
 
 # form to create , edit and delete a database object
 from django.views.generic.edit import CreateView, UpdateView, DeleteView
+from django.http import HttpResponseForbidden
+
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.contrib import messages
 
 # imports specifically for REST API:
 # 1) if object does not exist, return 404 error:
@@ -106,7 +110,7 @@ class ListAllImagesView(generic.ListView):
 
 
 # @login_required
-class ListAllObjectsView(generic.ListView):
+class ListAllObjectsView(LoginRequiredMixin, generic.ListView):
     # this variable 'template_name' is an attribute of ...
     # ... django.views.generic
     # THE NAME OF 'template_name' MUST NOT BE CHANGED ...
@@ -117,6 +121,9 @@ class ListAllObjectsView(generic.ListView):
     # change the name to refer to user photos
     # ... (in the template) as this:
     context_object_name = 'user_objects'
+    login_url = '/login/'
+    redirect_field_name = 'redirect_to'
+
 
     def get_queryset(self):
         # if the user is not logged in, do not return ANY objects ...
@@ -147,15 +154,26 @@ class DetailsView(generic.DetailView):
     template_name = 'mcd/detailed_photo_analysis.html'
 
 
-class ObjectDetailsView(generic.DetailView):
+class ObjectDetailsView(UserPassesTestMixin, generic.DetailView):
     model = MCD_Project
     # change the name to refer to photo analysis
     # ... (in the template) as this:
     context_object_name = 'project'
     template_name = 'mcd/detailed_project.html'
 
-    # current_object
+    def test_func(self):
+        # not allow the user who has not uploaded it to access the data
+        requested_project = MCD_Project.objects.get(pk=self.kwargs['pk'])
 
+        print("TESTING AUTH for pk", self.kwargs['pk'])
+        print("for user id ", self.request.user.pk)
+        print("analysis uploaded by: ", requested_project.uploaded_by_user_id.pk)
+
+        if not requested_project.uploaded_by_user_id.pk == self.request.user.pk:
+            # return HttpResponseForbidden("You can't view this Bar.")
+            return False
+        else:
+            return True
 
     """
         def get_context_data(self, **kwargs):
@@ -373,16 +391,29 @@ def get_crack_info_from_cloud_csv(relative_csv_path):
     return crack_labels, crack_locations, crack_lengths
 
 
-class RecordDetailsView(generic.DetailView):
+class RecordDetailsView(UserPassesTestMixin, generic.DetailView):
     model = MCD_Record
     # change the name to refer to photo analysis
     # ... (in the template) as this:
     context_object_name = 'record'
     template_name = 'mcd/detailed_record.html'
 
-    # current_object
+    def test_func(self):
+        # not allow the user who has not uploaded it to access the data
+        photo_analysis = MCD_Photo_Analysis.objects.get(pk=self.kwargs['pk'])
+
+        print("TESTING AUTH for pk", self.kwargs['pk'])
+        print("for user id ", self.request.user.pk)
+        print("analysis uploaded by: ", photo_analysis.uploaded_by_user_id.pk)
+
+        if not photo_analysis.uploaded_by_user_id.pk == self.request.user.pk:
+            # return HttpResponseForbidden("You can't view this Bar.")
+            return False
+        else:
+            return True
 
     def get_context_data(self, **kwargs):
+
         # get current object primary key (id):
         current_record = self.kwargs['pk']
         # filter out the objects that have been uploaded by the current user:
@@ -506,8 +537,14 @@ class EnqueuePhotoAnalysis(threading.Thread):
         except KeyError:
             sizes = pd.read_csv(csv_cloud_url, sep=",", lineterminator='\r')
             t.crack_length = float(sizes["Length (pxls)"].max())
+            # for '\r\n', pandas does not support multi-character line-terminators ...
+            # ... therefore, a workaround is needed - splitting on \r and then removing leftover \n
+            # https://stackoverflow.com/questions/53844875/how-to-deal-with-multi-value-lineterminators-in-pandas
+            sizes.iloc[:, 0] = sizes.iloc[:, 0].str.lstrip()
+            sizes.dropna(inplace=True)  # removes empty lines
 
-        print(">  >  > dataframe: ", list(sizes))
+        print(">  >  > 541 dataframe: ", list(sizes))
+        print(">  >  > 542 dataframe: ", sizes)
 
         # after the photo has been analysed ...
         t.output_photo       = output_photo_url  # change field
@@ -517,6 +554,8 @@ class EnqueuePhotoAnalysis(threading.Thread):
         t.analysis_complete  = True # change field
 
         t.datetime_analysed = datetime.datetime.now()
+
+        print("overlay_photo url:", t.overlay_photo)
 
         t.save() # this will update only
 
@@ -540,11 +579,17 @@ class PhotoAnalysisCreate(CreateView):
         # by default - no data (context = None)
         form = self.form_class(None)
 
+        # in the upload form, let the user choose only from projects/records they themselves have created:
+        # (filter out records and projects by user id)
         objects_per_user = MCD_Project.objects.filter(uploaded_by_user_id=request.user) \
             .values_list('uploaded_by_user_id', flat=True).first()
-        # return only the objects that match the current user logged in:
-        # print(form.fields)
+
+        records_per_user = MCD_Record.objects.filter(uploaded_by_user_id=request.user) \
+            .values_list('uploaded_by_user_id', flat=True).first()
+        # limit the form fields:
         form.fields['project_id'].queryset=MCD_Project.objects.filter(uploaded_by_user_id=objects_per_user)
+        form.fields['record_id'].queryset=MCD_Record.objects.filter(uploaded_by_user_id=records_per_user)
+
         if not form.fields['project_id'].queryset:
             form.fields['project_id'].disabled   = True
             form.fields['record_id'].disabled   = True
@@ -564,7 +609,6 @@ class PhotoAnalysisCreate(CreateView):
         current_datetime = datetime.datetime.now()
 
         print("in form_valid (self.request.user |", self.request.user, ")")
-
 
 
         ### --------- GOOGLE CLOUD STORAGE COMPATIBILITY ----------- ###
@@ -587,10 +631,10 @@ class PhotoAnalysisCreate(CreateView):
         print("blob path:", blob.path)
         print("blob purl:", blob.public_url)
         # print("blob help:", blob.path_helper(conf_settings.GOOGLE_CLOUD_STORAGE_BUCKET, uploaded_file))
+
         form.instance.input_photo = uploaded_filename #blob.path
+        print("form.instance.input_photo ", form.instance.input_photo)
         ### --------- GOOGLE CLOUD STORAGE COMPATIBILITY ----------- ###
-
-
 
         # if no record was specified, create new record and assign to selected object:
         if form.instance.record_id == None:
@@ -648,8 +692,8 @@ class PhotoAnalysisCreate(CreateView):
 
         # update the number of records of an object:
         from django.db.models import Count
-        # num_images = MCD_Project.objects.annotate(number_of_images=Count('mcd_photo_analysis'))  # annotate the queryset
-        num_images = MCD_Project.objects.annotate(number_of_images=Count('mcd_record'))  # annotate the queryset
+         # annotate the queryset
+        num_images = MCD_Project.objects.annotate(number_of_images=Count('mcd_record'))
 
         print(">>> num_images", num_images)
 
@@ -659,6 +703,9 @@ class PhotoAnalysisCreate(CreateView):
         # print("> > >", parent_object.title, parent_object.number_of_images)
         parent_object.num_images = parent_object.mcd_photo_analysis_set.count()
         parent_object.save()
+
+        print("enqueue IN  photo url: ", form.instance.input_photo)
+        print("enqueue OUT photo url: ", form.instance.output_photo)
 
         EnqueuePhotoAnalysis(task.id,
                              form.instance.title,
@@ -736,29 +783,16 @@ class ObjectCreate(CreateView):
               'postcode']
 
     def form_valid(self, form):
-        # get the uploaded photo name:
-        # uploaded_file = form.fields['input_photo'].instance
-        # uploaded_filename = str(form.instance.input_photo).rsplit('.', 1)[0]
-        # print(">>> uploaded file: ", uploaded_filename)
-
         print("in form_valid (self.request.user |", self.request.user, ")")
         form.instance.uploaded_by_user_id = self.request.user
-        # get the file name uploaded to upload as the title
-        # (remove the extension - split by '.'):
-        # form.instance.title = uploaded_filename
 
         # save the changes made to the database ...
         # ... and get the new assigned ID (primary key by task.id)
         form.save()
 
-        # EnqueuePhotoAnalysis(task.id,
-        #                      form.instance.title,
-        #                      form.instance.uploaded_by_user_id,
-        #                      form.instance.input_photo,
-        #                      form.instance.output_photo,
-        #                      form.instance.analysis_complete).start()
-
-        return super(ObjectCreate, self).form_valid(form)
+        # return super(ObjectCreate, self).form_valid(form)
+        messages.success(self.request, form.instance.title)
+        return redirect('mcd:object-list')
 # =============================== Filler Views ================================== #
 
 def upload_to_analysis(request):
