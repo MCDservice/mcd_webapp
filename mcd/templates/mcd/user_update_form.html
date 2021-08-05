@@ -15,11 +15,23 @@
                 <div class="panel panel-default">
                     <div class="panel-body">
 
-                        <h3>Log in:</h3>
+                        <h3>Update Email:</h3>
+                        <ul class="list-group">
+                            <li class="list-group-item">
+                                 <div class="list-item-container">
+                                     <div class="list-item-first label-grey-outline">
+                                        Current Email:
+                                     </div>
+                                     <div class="list-item label-grey">
+                                        {{ email }}
+                                     </div>
+                                 </div>
+                            </li>
+                        </ul>
 {#                        {% if error_message %}#}
 {#                            <p><strong>{{ error_message }}</strong></p>#}
 {#                        {% endif %}#}
-
+                        <p>Enter new email below:</p>
                         <form class="form-horizontal" role="form" method="post">
                             {% csrf_token %}
                             {% include 'mcd/form/form_template.html' %}
@@ -31,11 +43,11 @@
                                 <input type="hidden" name="next" value="{{ request.GET.next }}">
 {#                               on submit, we will send a post request with 'value' specified #}
                             {% endif %}
-                            <a href="{% url 'password_reset' %}">Forgot Password?</a>
+                            <p>NOTE: to change the email, you will be sent a new authentication email with a link</p>
                             <div class="form-group">
                                 <div class="col-sm-offset--2 col-sm-10">
                                     <button type="submit" class="btn btn-success">
-                                        Log in
+                                        Update Email (Requires re-authentication)
                                     </button>
                                 </div>
 

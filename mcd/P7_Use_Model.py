@@ -4,6 +4,7 @@ import json
 import os
 
 from urllib.request import urlopen
+from .secretizer import hash256sha
 import cv2
 import numpy as np
 
@@ -23,7 +24,8 @@ import matplotlib.pyplot as plt
 from tempfile import TemporaryFile
 import mimetypes
 
-def save_memory_to_image_in_cloud(data, location, media=False, colour=False):
+
+def save_memory_to_image_in_cloud(data, location, media_dir=False, colour=False):
 
     # since google cloud uses '/' to indicate directories, ...
     # ... change all '\' (if any) to '/'
@@ -41,12 +43,12 @@ def save_memory_to_image_in_cloud(data, location, media=False, colour=False):
         io_buf = io.BytesIO(buffer)
 
         gcs_image.seek(0)
-        blob = bucket.blob(media*('media/') + location)
+        blob = bucket.blob(media_dir*(conf_settings.MEDIA_DIR_NAME) + location)
         blob.upload_from_file(io_buf,
                               content_type=mimetypes.MimeTypes().guess_type(location)[0])
 
 
-def save_plt_to_image_in_cloud(data, location, media=False, colour=False):
+def save_plt_to_image_in_cloud(data, location, media_dir=False, colour=False):
 
     # since google cloud uses '/' to indicate directories, ...
     # ... change all '\' (if any) to '/'
@@ -72,7 +74,7 @@ def save_plt_to_image_in_cloud(data, location, media=False, colour=False):
         plt.imsave(temp_image, data)
         temp_image.seek(0)
 
-        blob = bucket.blob(media * ('media/') + location)
+        blob = bucket.blob(media_dir * (conf_settings.MEDIA_DIR_NAME) + location)
         blob.upload_from_file(temp_image, content_type='image/png')
     #     # encode
     #     is_success, buffer = cv2.imencode(".png", data)
@@ -85,7 +87,7 @@ def save_plt_to_image_in_cloud(data, location, media=False, colour=False):
     #                           content_type=mimetypes.MimeTypes().guess_type(location)[0])
 
 
-def save_csv_to_cloud(dataframe, location, media=False):
+def save_csv_to_cloud(dataframe, location, media_dir=False):
     # since google cloud uses '/' to indicate directories, ...
     # ... change all '\' (if any) to '/'
     location = location.replace('\\', '/')
@@ -95,10 +97,10 @@ def save_csv_to_cloud(dataframe, location, media=False):
     client = storage.Client()
     bucket = client.get_bucket(conf_settings.GOOGLE_CLOUD_STORAGE_BUCKET)
 
-    bucket.blob(media*('media/') + location).upload_from_string(dataframe.to_csv(), 'text/csv')
+    bucket.blob(media_dir*(conf_settings.MEDIA_DIR_NAME) + location).upload_from_string(dataframe.to_csv(), 'text/csv')
 
 
-def save_to_cloud(file_to_upload, filename, media=False):
+def save_to_cloud(file_to_upload, filename, media_dir=False):
     ### --------- GOOGLE CLOUD STORAGE COMPATIBILITY ----------- ###
     # Create a Cloud Storage client.
     gcs = storage.Client()
@@ -107,7 +109,7 @@ def save_to_cloud(file_to_upload, filename, media=False):
     bucket = gcs.get_bucket(conf_settings.GOOGLE_CLOUD_STORAGE_BUCKET)
 
     # Create a new blob and upload the file's content.
-    blob = bucket.blob(media*('media/') + filename)
+    blob = bucket.blob(media_dir*(conf_settings.MEDIA_DIR_NAME) + filename)
 
     # uploaded_file = form.instance.input_photo
     blob.upload_from_string(
@@ -154,7 +156,8 @@ def url_to_image(url, readFlag=cv2.IMREAD_COLOR):
     return image
 
 
-def analyse_photo(Image_Path, Image_Name):
+def analyse_photo(Image_Path, Image_Name,
+                  user, project_id, record_id, analysis_id):
     #=============================================================================
     #                PROGRAM: USE CNN MODEL (SEMANTIC SEGMENTATION)
     #=============================================================================
@@ -209,6 +212,7 @@ def analyse_photo(Image_Path, Image_Name):
 
     # Output_Path = "Output//Images"
     Output_Path = "media"
+    # Cloud_Base_Dir = conf_settings.MEDIA_DIR_NAME
 
     #=============================================================================
     # Image-size options (Input and output of model)
@@ -340,13 +344,13 @@ def analyse_photo(Image_Path, Image_Name):
     #-----------------------------------------------------------------------------
 
     # Horizontal resolution
-    X_Res = 1920;
+    X_Res = 1920
 
     # Vertical resolution
-    Y_Res = 1080;
+    Y_Res = 1080
 
     # Monitor DPI
-    my_dpi = 96;
+    my_dpi = 96
 
     # Default font size of figure
     Font_Size = 10
@@ -566,21 +570,40 @@ def analyse_photo(Image_Path, Image_Name):
     #-----------------------------------------------------------------------------
 
     # Image_Path = "http://127.0.0.1:8000" + Image_Path
-    print("Image Path: ", Image_Path)
+    print("Image Path (as parameter): ", Image_Path)
     # Image_Path = str(pathlib.Path(Image_Path))
     Model_Path = str(pathlib.Path(Model_Path))
     JModel_Path = str(pathlib.Path(JModel_Path))
     Output_Path = str(pathlib.Path(Output_Path))
 
     Image_File = os.path.basename(Image_Path)
+    print("Image Path (extracted): ", Image_Path)
+
     # The Image_Name is now given as a function argument.
     # Image_Name = os.path.splitext(Image_File)[0]
     Model_Name = os.path.splitext(os.path.basename(Model_Path))[0]
+    print("Model Name", Model_Name)
 
     Predictions_Path = os.path.join(Output_Path, Model_Name)
     AllPredictions_Path = os.path.join(Output_Path, Model_Name, Image_Name)
     AllPredictions_Path1 = os.path.join(AllPredictions_Path, "CV2")
     AllPredictions_Path2 = os.path.join(AllPredictions_Path, "PLT")
+
+    Predictions_Path = user+'_'+str(project_id)+'_'+str(record_id)+'_'+str(analysis_id)
+    AllPredictions_Path = Predictions_Path
+    AllPredictions_Path1 = Predictions_Path
+    AllPredictions_Path2 = Predictions_Path
+
+    print("[INFO] Showing created paths:")
+    print("Predictions_Path '.png':", Predictions_Path)
+    print("AllPredictions_Path ' (Fig).png':", AllPredictions_Path)
+    print("AllPredictions_Path1 [Save using CV2]:", AllPredictions_Path1)
+    print("AllPredictions_Path2 [Save using PLT]:", AllPredictions_Path2)
+
+    print("[NEW] Suggested new path:")
+    print(">>> media/", user, "/", project_id, "/", record_id, "/", analysis_id, sep="")
+    print(">>> media/", hash256sha(user+'_'+str(project_id)+'_'+str(record_id)+'_'+str(analysis_id)))
+
 
     # DeleteFolder(AllPredictions_Path)
     # CreatePath(AllPredictions_Path1)
@@ -675,7 +698,7 @@ def analyse_photo(Image_Path, Image_Name):
 
         print("WRITING TO FILE")
 
-        path = "C:\\Users\\Dom\\AppData\\Local\\Google\\Cloud SDK\\mcd_webapp\\mcd\\"
+        path = "C:\\Users\\Dom\\AppData\\Local\\Google\\Cloud SDK\\mcd_webapp\\mcd\\tmp\\"
         temp_model_location = 'tmp_weights.h5'
 
         try:
@@ -774,7 +797,7 @@ def analyse_photo(Image_Path, Image_Name):
 
 
     Image = np.copy(Source)[:,:,:3]
-    print("image right now: ", Image, " its shape: ", Image.shape)
+    # print("image right now: ", Image, " its shape: ", Image.shape)
 
     # Adjust size of images with very small/high resolutions
     [x0,y0] = [Image.shape[1], Image.shape[0]]
@@ -1160,6 +1183,21 @@ def analyse_photo(Image_Path, Image_Name):
     # make a dictionary to refer to image paths later:
     url_dict = {}
 
+    # choose which images to save on the cloud:
+    # choices (+ in front indicates currently chosen ones)
+    # "CNN Output (O)"
+    # "CNN Output (R)"
+    # +"Binarised (t=" + str(Bin_Threshold) + ")" | for example - Binarised (t=0.5)
+    # "Resized Final Mask"
+    # +"Overlay"
+    # "Skeleton"
+    # +"Final Watershed"
+
+    titles_to_save = ["Overlay", "Binarised (t=" + str(Bin_Threshold) + ")",
+                      "crack_len_csv", "Final Watershed"]
+
+    save_CV2_or_PLT = ["plt"]
+
     # Store images
     if Save_Output==True:
         # Store final mask
@@ -1168,7 +1206,7 @@ def analyse_photo(Image_Path, Image_Name):
         # don't save files locally for cloud services:
         # cv2.imwrite(BinMask_Path, FinalMask)
 
-        print("[INFO] Saved image to path: " + BinMask_Path)
+        # print("[INFO] Saved image to path: " + BinMask_Path)
         # Store plt figure
         Figure_Path = os.path.join(AllPredictions_Path, Image_Name + " (Fig).png")
 
@@ -1176,61 +1214,84 @@ def analyse_photo(Image_Path, Image_Name):
         # plt.savefig(Figure_Path, dpi=my_dpi, bbox_inches = "tight")
 
         # NEW
-        save_memory_to_image_in_cloud(FinalMask, BinMask_Path)
+        # save_memory_to_image_in_cloud(FinalMask, Cloud_Base_Dir+hash256sha(BinMask_Path))
         # endNEW
 
+        print("[INFO] Saving images from list:")
         # Save all images from the list
         for [n1,[Saved_Title,Saved_Image]] in enumerate(List_Images):
+
             # Save using CV2
-            Temp_Path = os.path.join(AllPredictions_Path1, Image_Name + \
-                        " (#" + str(n1) + " - " + Saved_Title + ").png")
+            if "cv2" in save_CV2_or_PLT:
+                if Saved_Title in titles_to_save:
+                    # Temp_Path = os.path.join(AllPredictions_Path1, Image_Name + \
+                    #             " (#" + str(n1) + " - " + Saved_Title + ").png")
 
-            # don't save files locally for cloud services:
-            # cv2.imwrite(Temp_Path, Saved_Image)
+                    Temp_Path = AllPredictions_Path1 + "_CV2_" + str(n1) + "-" + Saved_Title
+                    print(Saved_Title, " -> ", Temp_Path)
+                    # don't save files locally for cloud services:
+                    # cv2.imwrite(Temp_Path, Saved_Image)
 
-            # NEW
-            save_memory_to_image_in_cloud(Saved_Image, Temp_Path)
-            # endNEW
+                    # NEW
+                    # cloud_filename = conf_settings.MEDIA_DIR_NAME+hash256sha(Temp_Path)
+                    cloud_filename = hash256sha(Temp_Path)
+                    print("Hashed Version -> ", cloud_filename)
+                    save_memory_to_image_in_cloud(Saved_Image, cloud_filename, media_dir=True)
+                    # endNEW
+
 
             # Save using PLT
-            if len(Saved_Image.shape)==3 and Saved_Image.shape[2]==3:
-                Saved_Image = cv2.cvtColor(Saved_Image, cv2.COLOR_BGR2RGB)
-            # Saved_Image = cv2.cvtColor(Saved_Image, cv2.COLOR_BGR2RGB)
+            if "plt" in save_CV2_or_PLT:
+                if Saved_Title in titles_to_save:
+                    if len(Saved_Image.shape)==3 and Saved_Image.shape[2]==3:
+                        Saved_Image = cv2.cvtColor(Saved_Image, cv2.COLOR_BGR2RGB)
+                    # Saved_Image = cv2.cvtColor(Saved_Image, cv2.COLOR_BGR2RGB)
 
-            Temp_Path = os.path.join(AllPredictions_Path2, Image_Name + \
-                        " (#" + str(n1) + " - " + Saved_Title + ").png")
+                    # Temp_Path = os.path.join(AllPredictions_Path2, Image_Name + \
+                    #             " (#" + str(n1) + " - " + Saved_Title + ").png")
+                    Temp_Path = AllPredictions_Path2 + "_PLT_" + str(n1) + "-" + Saved_Title
 
-            # don't save files locally for cloud services:
-            # plt.imsave(Temp_Path,Saved_Image)
+                    # don't save files locally for cloud services:
+                    # plt.imsave(Temp_Path,Saved_Image)
 
-            # save_memory_to_image_in_cloud(Saved_Image, Temp_Path)
-            save_plt_to_image_in_cloud(Saved_Image, Temp_Path)
+                    # save_memory_to_image_in_cloud(Saved_Image, Temp_Path)
+                    # cloud_filename = conf_settings.MEDIA_DIR_NAME + hash256sha(Temp_Path)
+                    cloud_filename = hash256sha(Temp_Path)
+                    print(Saved_Title, " -> ", Temp_Path)
+                    print("Hashed Version -> ", cloud_filename)
+                    save_plt_to_image_in_cloud(Saved_Image, cloud_filename, media_dir=True)
 
-            # [interoperability]
-            # Google Cloud uses Unix-like operating system, "/", ...
-            # ... whereas for testing locally, "\" might be used:
-            try:
-                url_dict[Saved_Title] = Temp_Path.split('/', 1)[1]
-            except IndexError:
-                url_dict[Saved_Title] = Temp_Path.split('\\', 1)[1]
+                    url_dict[Saved_Title] = cloud_filename
+
+                    # [interoperability]
+                    # Google Cloud uses Unix-like operating system, "/", ...
+                    # ... whereas for testing locally, "\" might be used:
+                    # try:
+                    #     url_dict[Saved_Title] = Temp_Path.split('/', 1)[1]
+                    # except IndexError:
+                    #     url_dict[Saved_Title] = Temp_Path.split('\\', 1)[1]
 
         # Save segmentation properties
-        if Evaluate_Metrics==True:
-            crack_length_path = os.path.join(AllPredictions_Path,'Sizes.csv')
+        if Evaluate_Metrics==True and "crack_len_csv" in titles_to_save:
+            # crack_length_path = os.path.join(AllPredictions_Path,'Sizes.csv')
+            crack_length_path = AllPredictions_Path+'_sizes'
 
             # [interoperability]
             # Google Cloud uses Unix-like operating system, "/", ...
             # ... whereas for testing locally, "\" might be used:
-            try:
-                url_dict["crack_len_csv"] = crack_length_path.split('/', 1)[1]
-            except IndexError:
-                url_dict["crack_len_csv"] = crack_length_path.split('\\', 1)[1]
+            # try:
+            #     url_dict["crack_len_csv"] = crack_length_path.split('/', 1)[1]
+            # except IndexError:
+            #     url_dict["crack_len_csv"] = crack_length_path.split('\\', 1)[1]
 
             # don't save files locally for cloud services:
             # Df_Sizes.to_csv(crack_length_path, index=False)
 
             print(">>> writing to csv at path: ", crack_length_path)
-            save_csv_to_cloud(Df_Sizes, crack_length_path)
+            cloud_filename = hash256sha(crack_length_path)
+            save_csv_to_cloud(Df_Sizes, cloud_filename, media_dir=True)
+
+            url_dict["crack_len_csv"] = cloud_filename
 
             # save_to_cloud(Df_Sizes, crack_length_path, media=True)
 
@@ -1247,9 +1308,16 @@ def analyse_photo(Image_Path, Image_Name):
 
     # Show plot (do not show plot on the web application)
     # plt.show()
+    print("[INFO] Returning paths:")
+    print("Overlay: ", url_dict["Overlay"])
+    print("Binarised (t=" + str(Bin_Threshold) + ")", url_dict["Binarised (t=" + str(Bin_Threshold) + ")"])
+    print("crack_len_csv", url_dict["crack_len_csv"])
+    print("Final Watershed", url_dict["Final Watershed"])
 
-    print("overlay: ", url_dict["Overlay"])
-    print("binaris: ", url_dict["Binarised (t=" + str(Bin_Threshold) + ")"])
+    # return Cloud_Base_Dir+hash256sha(url_dict["Overlay"]), \
+    #        Cloud_Base_Dir+hash256sha(url_dict["Binarised (t=" + str(Bin_Threshold) + ")"]), \
+    #        Cloud_Base_Dir+hash256sha(url_dict["crack_len_csv"]), \
+    #        Cloud_Base_Dir+hash256sha(url_dict["Final Watershed"])
 
     return url_dict["Overlay"], \
            url_dict["Binarised (t=" + str(Bin_Threshold) + ")"], \

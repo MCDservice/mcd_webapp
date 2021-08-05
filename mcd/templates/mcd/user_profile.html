@@ -1,0 +1,82 @@
+{% extends 'mcd/base.html' %}
+{% block title %}MCD | Profile {% endblock %}
+
+{% block body %}
+    {% if messages %}
+        {% for message in messages %}
+            <div {% if message.tags %} class="alert alert-{{ message.extra_tags}}"{% endif %}>
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-sm-12 col-md-7">
+                <div class="panel panel-default">
+                    <div class="panel-body">
+
+                        <h3>User Profile</h3>
+{#                        {% if error_message %}#}
+{#                            <p><strong>{{ error_message }}</strong></p>#}
+{#                        {% endif %}#}
+
+                        <ul class="list-group">
+                            <li class="list-group-item">
+                                 <div class="list-item-container">
+                                     <div class="list-item-first label-grey-outline">
+                                        Username:
+                                     </div>
+                                     <div class="list-item label-grey">
+                                        {{ username }}
+                                     </div>
+                                 </div>
+                            </li>
+                            <li class="list-group-item">
+                                 <div class="list-item-container">
+                                     <div class="list-item-first label-grey-outline">
+                                        Email:
+                                     </div>
+                                     <div class="list-item label-grey">
+                                        {{ email }}
+                                     </div>
+                                     <div class="list-item-last pad-ends-8px">
+                                        <a href="{% url 'mcd:profile-update' %}">
+                                            <span class="glyphicon glyphicon-pencil" aria-hidden="true"></span>&nbsp
+                                        </a>
+                                     </div>
+{#                                     &nbsp; <a href="">Change Email</a>#}
+                                 </div>
+                            </li>
+                            <li class="list-group-item">
+                                <a href="{% url 'password_reset' %}">Change Password</a>
+                            </li>
+                        </ul>
+                        <br>
+                        <form class="form-horizontal" role="form" method="post">
+                            {% csrf_token %}
+{#                            {% include 'mcd/form/form_template.html' %}#}
+
+{#                          if the user is to be redirected after logging in ... #}
+{#                          ... (to a page other than index/main)  #}
+                            {% if request.GET.next %}
+                                <h2>Please Log In to access the page {{ request.GET.next }}</h2>
+                                <input type="hidden" name="next" value="{{ request.GET.next }}">
+{#                               on submit, we will send a post request with 'value' specified #}
+                            {% endif %}
+
+{#                            <div class="form-group">#}
+{#                                <div class="col-sm-offset--2 col-sm-10">#}
+{#                                    <button type="submit" class="btn btn-success">#}
+{#                                        Delete Account#}
+{#                                    </button>#}
+{#                                </div>#}
+{#                            </div>#}
+                        </form>
+
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

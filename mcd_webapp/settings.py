@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/3.2/ref/settings/
 """
 import os
 from pathlib import Path
+from .getKey import getKey1, getKey2
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -32,6 +33,7 @@ ALLOWED_HOSTS = ['cool-keel-320414.nw.r.appspot.com', '127.0.0.1']
 
 INSTALLED_APPS = [
     'mcd.apps.HomeConfig',
+    'anymail',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -99,7 +101,7 @@ if os.getenv('GAE_APPLICATION', None):
             'ENGINE': 'django.db.backends.mysql',
             'HOST': '/cloudsql/cool-keel-320414:europe-west2:polls-instance',
             'USER': 'polls',
-            'PASSWORD': '0p9l*M&n!q',
+            'PASSWORD': getKey1(),
             'NAME': 'mcd_webapp_test',
         }
     }
@@ -117,7 +119,7 @@ else:
             'PORT': '3306',
             'NAME': 'mcd_webapp_test',
             'USER': 'polls',
-            'PASSWORD': '0p9l*M&n!q',
+            'PASSWORD': getKey1(),
         }
     }
 # [END db_setup]
@@ -168,11 +170,31 @@ STATIC_ROOT = BASE_DIR #os.path.join(BASE_DIR, 'staticfiles')
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # where the user uploaded data is stored!
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media') # on the computer
+# MEDIA_ROOT = os.path.join(BASE_DIR, 'media') # on the computer
+MEDIA_ROOT = "/tmp" # on the computer
 # MEDIA_URL = '/media/' # relative URL - for browsers to access files over HTTP
 
 GOOGLE_CLOUD_STORAGE_BUCKET = 'mcd_file_storage'
 # MEDIA_URL = 'https://storage.cloud.google.com/mcd_file_storage/media/'
-MEDIA_URL = 'https://storage.googleapis.com/mcd_file_storage/media/'
-# MEDIA_ROOT = 'https://storage.cloud.google.com/mcd_file_storage/media/'
+MEDIA_DIR_NAME = "media/"
+MEDIA_URL = 'https://storage.googleapis.com/mcd_file_storage/'+MEDIA_DIR_NAME
+# MEDIA_ROOT = 'https://storage.googleapis.com/mcd_file_storage/media/'
 MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'
+
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+
+EMAIL_USE_TLS = True
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_HOST_USER = 'mcd.recover@gmail.com'
+EMAIL_HOST_PASSWORD = getKey2()
+
+
+AUTHENTICATION_BACKENDS = (
+    # Needed to login by username in Django admin, regardless of `allauth`
+    "django.contrib.auth.backends.ModelBackend",
+
+    # `allauth` specific authentication methods, such as login by e-mail
+    # "allauth.account.auth_backends.AuthenticationBackend",
+)

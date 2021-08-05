@@ -1,0 +1,14 @@
+{% extends 'mcd/base.html' %}
+{% block title %} MCD | Confirm Delete  {% endblock %}
+
+{% block body %}
+<form class="content-form" method="post" action="">
+     {% csrf_token %}
+     <span>
+        Are you sure to delete the project #{{ pk }}?
+     </span>
+
+     <button type="submit"> Delete </button>
+
+</form>
+{% endblock %}

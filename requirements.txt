@@ -17,3 +17,4 @@ matplotlib
 scikit-image
 fsspec
 gcsfs
+django-anymail[sendgrid,sparkpost]

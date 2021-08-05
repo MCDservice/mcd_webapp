@@ -4,7 +4,41 @@
 {% block body %}
 
     {% if user.is_authenticated %}
-        STATS PAGE
+        <p class="text-title">Welcome, {{ user }}</p>
+
+         <ul class="list-group">
+            <li class="list-group-item">
+                 <div class="list-item-container">
+                     <div class="list-item-first label-grey-outline">
+                        Total Number of Projects:
+                     </div>
+                     <div class="list-item label-grey">
+                        {{ num_projects }}
+                     </div>
+                 </div>
+            </li>
+            <li class="list-group-item">
+                 <div class="list-item-container">
+                     <div class="list-item-first label-grey-outline">
+                        Total Number of Records:
+                     </div>
+                     <div class="list-item label-grey">
+                        {{ num_records }}
+                     </div>
+                 </div>
+            </li>
+            <li class="list-group-item">
+                 <div class="list-item-container">
+                     <div class="list-item-first label-grey-outline">
+                        Total Number of Images:
+                     </div>
+                     <div class="list-item label-grey">
+                        {{ num_images }}
+                     </div>
+                 </div>
+            </li>
+        </ul>
+
     {% else %}
         <div class="welcomescreen">
             <div class="card text-center bg-dark mb-3">

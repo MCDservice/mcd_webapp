@@ -18,6 +18,21 @@ from django.http import HttpResponseForbidden
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib import messages
 
+
+# modules for user account registration:
+from django.http import HttpResponse
+from django.shortcuts import render, redirect
+from django.contrib.auth import login, authenticate
+# from .forms import SignupForm
+from django.contrib.sites.shortcuts import get_current_site
+from django.utils.encoding import force_bytes, force_text
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.template.loader import render_to_string
+from .tokens import account_activation_token
+from django.contrib.auth.models import User
+from django.core.mail import EmailMessage
+# end of modules for user account registration
+
 # imports specifically for REST API:
 # 1) if object does not exist, return 404 error:
 from django.shortcuts import get_object_or_404
@@ -40,12 +55,26 @@ from .P7_Use_Model import analyse_photo
 #  ... so users do not need to reauthenticate)
 from django.contrib.auth import authenticate, login, logout
 from django.views.generic import View
-from .forms import UserForm, MCD_Photo_AnalysisFORM
+from .forms import UserForm, UserUpdateForm, MCD_Photo_AnalysisFORM, MCD_RecordFORM, MCD_ProjectFORM
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.conf import settings as conf_settings
 
 import os
+from .secretizer import hide_username, hash256sha
 # os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'client_secret_477185057888-brm030gcqnjoo7uijrijesp1ogi8hkah.apps.googleusercontent.com.json'
+
+def clear_tmp_dir():
+    import os, shutil
+    folder = conf_settings.MEDIA_ROOT
+    for filename in os.listdir(folder):
+        file_path = os.path.join(folder, filename)
+        try:
+            if os.path.isfile(file_path) or os.path.islink(file_path):
+                os.unlink(file_path)
+            elif os.path.isdir(file_path):
+                shutil.rmtree(file_path)
+        except Exception as e:
+            print('Failed to delete %s. Reason: %s' % (file_path, e))
 
 # @login_required
 class IndexView(generic.ListView):
@@ -59,7 +88,14 @@ class IndexView(generic.ListView):
     # change the name to refer to user photos
     # ... (in the template) as this:
     context_object_name = 'user_photos'
-
+    
+    def get_context_data(self, **kwargs):
+        data = super().get_context_data(**kwargs)
+        data['num_projects'] = self.request.user.mcd_project_set.count()
+        data['num_records']  = self.request.user.mcd_record_set.count()
+        data['num_images']   = self.request.user.mcd_photo_analysis_set.count()
+        return data
+    
     def get_queryset(self):
         # if the user is not logged in, do not return ANY objects ...
         # ... (if the user is logged in, is also checked in the ...
@@ -228,17 +264,19 @@ class ObjectDetailsView(UserPassesTestMixin, generic.DetailView):
 
 
 def read_csv_from_cloud(csv_filename, newline_char):
-    csv_cloud_url = 'gs://' + conf_settings.GOOGLE_CLOUD_STORAGE_BUCKET + "/media/" + csv_filename.replace(
+    csv_cloud_url = 'gs://' + conf_settings.GOOGLE_CLOUD_STORAGE_BUCKET + \
+                    '/' + conf_settings.MEDIA_DIR_NAME + csv_filename.replace(
         '\\', '/')
     print(">>> reading csv from URL: ", csv_cloud_url)
 
+    try:
+        processed_csv = pd.read_csv(csv_cloud_url, sep=",", lineterminator=newline_char)
+        print(">  >  > dataframe: ", list(processed_csv))
+        print(">  >  > last heading: ", list(processed_csv)[-1])
 
-    processed_csv = pd.read_csv(csv_cloud_url, sep=",", lineterminator=newline_char)
-
-    print(">  >  > dataframe: ", list(processed_csv))
-    print(">  >  > last heading: ", list(processed_csv)[-1])
-
-    return processed_csv
+        return processed_csv
+    except:
+        return pd.DataFrame()
 
 
 class RecordComparison1View(generic.DetailView):
@@ -369,6 +407,11 @@ def get_crack_info_from_cloud_csv(relative_csv_path):
     # (in such cases, the heading index becomes:
     # 'Length (pxls)\r' or 'Length (pxls)\n', instead of 'Length (pxls)' ...
     # ... which gives a KeyError
+
+    crack_labels_csv = read_csv_from_cloud(relative_csv_path, '\n')
+    if crack_labels_csv.empty:
+        return None, None, None
+
     try:
         # processed_csv = pd.read_csv(csv_cloud_url, sep=",", lineterminator='\n')
         crack_labels_csv = read_csv_from_cloud(relative_csv_path, '\n')
@@ -400,13 +443,13 @@ class RecordDetailsView(UserPassesTestMixin, generic.DetailView):
 
     def test_func(self):
         # not allow the user who has not uploaded it to access the data
-        photo_analysis = MCD_Photo_Analysis.objects.get(pk=self.kwargs['pk'])
+        mcd_record = MCD_Record.objects.get(pk=self.kwargs['pk'])
 
         print("TESTING AUTH for pk", self.kwargs['pk'])
         print("for user id ", self.request.user.pk)
-        print("analysis uploaded by: ", photo_analysis.uploaded_by_user_id.pk)
+        print("analysis uploaded by: ", mcd_record.uploaded_by_user_id.pk)
 
-        if not photo_analysis.uploaded_by_user_id.pk == self.request.user.pk:
+        if not mcd_record.uploaded_by_user_id.pk == self.request.user.pk:
             # return HttpResponseForbidden("You can't view this Bar.")
             return False
         else:
@@ -416,12 +459,9 @@ class RecordDetailsView(UserPassesTestMixin, generic.DetailView):
 
         # get current object primary key (id):
         current_record = self.kwargs['pk']
-        # filter out the objects that have been uploaded by the current user:
+        # filter out the records that are associated with the current record:
         image_ids_in_record = MCD_Photo_Analysis.objects.filter(record_id=current_record) \
             .values_list('record_id', flat=True).first()
-        # return only the objects that match the current user logged in:
-        # return MCD_Photo_Analysis.objects.filter(project_id=images_in_object)
-
         images_in_record = MCD_Photo_Analysis.objects.filter(record_id=image_ids_in_record)
 
         biggest_crack_length_list = []
@@ -455,7 +495,8 @@ class RecordDetailsView(UserPassesTestMixin, generic.DetailView):
             relative_csv_path = get_cloud_relative_path_from_folder("media", display_image.crack_labels_csv.url)
             crack_labels, crack_locations, crack_lengths = get_crack_info_from_cloud_csv(relative_csv_path)
             # (negation to sort in descending order!)
-            sorted_ids = np.argsort(-crack_lengths)
+            if crack_lengths is not None:
+                sorted_ids = np.argsort(-crack_lengths)
         except ValueError:
             # The 'crack_labels_csv' attribute has no file associated with it.
             pass
@@ -491,13 +532,20 @@ class EnqueuePhotoAnalysis(threading.Thread):
     after the user uploads their image, (or requests an update) ...
     ... enqueue the task and submit to the F_Use_Model.py to run it
     """
-    def __init__(self, db_pk, title, user_id, input_url, output_url, completed):
-        self.db_pk      = db_pk
-        self.title      = title
-        self.user_id    = user_id
-        self.input_url  = input_url
-        self.output_url = output_url
-        self.completed  = completed
+    def __init__(self, db_pk, title, user_id, input_url, output_url, completed,
+                 user, project_id, record_id, analysis_id):
+        self.db_pk       = db_pk
+        self.title       = title
+        self.user_id     = user_id
+        self.input_url   = input_url
+        self.output_url  = output_url
+        self.completed   = completed
+
+
+        self.user        = user
+        self.project_id  = project_id
+        self.record_id   = record_id
+        self.analysis_id = analysis_id
 
         threading.Thread.__init__(self)
 
@@ -510,7 +558,9 @@ class EnqueuePhotoAnalysis(threading.Thread):
         overlay_photo_url, \
         output_photo_url,\
         crack_len_url,\
-        crack_labels_url = analyse_photo(self.input_url.url, self.title)
+        crack_labels_url = analyse_photo(self.input_url.url, self.title,
+                                         self.user, self.project_id,
+                                         self.record_id, self.analysis_id)
 
         print("crack_len_url", crack_len_url)
         print("photo analysed, posting to db index:", self.db_pk)
@@ -522,7 +572,8 @@ class EnqueuePhotoAnalysis(threading.Thread):
 
         # sizes = pd.read_csv(conf_settings.MEDIA_URL.split('/')[1]+"\\"+crack_len_url)
         # csv_cloud_url = conf_settings.MEDIA_URL + crack_len_url.replace('\\', '/')
-        csv_cloud_url = 'gs://'+conf_settings.GOOGLE_CLOUD_STORAGE_BUCKET+"/media/"+crack_len_url.replace('\\', '/')
+        csv_cloud_url = 'gs://'+conf_settings.GOOGLE_CLOUD_STORAGE_BUCKET + \
+                        '/'+ conf_settings.MEDIA_DIR_NAME + crack_len_url.replace('\\', '/')
         print(">>> reading csv from URL: ", csv_cloud_url )
 
         # [interoperability]
@@ -561,6 +612,50 @@ class EnqueuePhotoAnalysis(threading.Thread):
 
 # =============================== Filler Views ================================== #
 # --------------------------- MCD_Photo_Analysis -------------------------------- #
+def upload_file_to_cloud(file_to_upload, filename):
+    # Create a Cloud Storage client.
+    gcs = storage.Client()
+
+    # Get the bucket that the file will be uploaded to.
+    bucket = gcs.get_bucket(conf_settings.GOOGLE_CLOUD_STORAGE_BUCKET)
+
+    # Create a new blob and upload the file's content.
+    blob = bucket.blob(conf_settings.MEDIA_DIR_NAME + filename)
+
+    # file_to_upload = form.instance.input_photo
+    blob.upload_from_string(
+        file_to_upload.read(),
+        # content_type=uploaded_file.content_type
+    )
+
+    # The public URL can be used to directly access the uploaded file via HTTP.
+    print("blob path:", blob.path)
+    print("blob purl:", blob.public_url)
+
+
+def delete_file_from_cloud_media(filename):
+    import google.api_core
+
+    # Create a Cloud Storage client.
+    gcs = storage.Client()
+
+    # Get the bucket that the file will be uploaded to.
+    bucket = gcs.get_bucket(conf_settings.GOOGLE_CLOUD_STORAGE_BUCKET)
+
+    # Create a new blob and upload the file's content.
+    try:
+        blob = bucket.blob(conf_settings.MEDIA_DIR_NAME + filename)
+        blob.delete()
+    except google.api_core.exceptions.NotFound:
+        # file does not exist - already deleted, or by other means
+        print("File", conf_settings.MEDIA_DIR_NAME + filename, "already not present")
+        pass
+
+
+def make_cloud_filename(username, project_id, record_id, analysis_id):
+    return hash256sha(username+'/'+str(project_id)+'/'+str(record_id)+'/'+str(analysis_id))
+
+
 class PhotoAnalysisCreate(CreateView):
     # database model we will allow the user to edit/fill-in
     model = MCD_Photo_Analysis
@@ -611,29 +706,16 @@ class PhotoAnalysisCreate(CreateView):
         print("in form_valid (self.request.user |", self.request.user, ")")
 
 
+        # filename_on_cloud = make_cloud_filename(hide_username(self.request.user),
+        #                                     form.instance.project_id.pk,
+        #                                     mcd_record.pk, form.instance.pk)
+
         ### --------- GOOGLE CLOUD STORAGE COMPATIBILITY ----------- ###
-        # Create a Cloud Storage client.
-        gcs = storage.Client()
+        filename_on_cloud = uploaded_filename
+        # upload_file_to_cloud(form.instance.input_photo, filename_on_cloud)
 
-        # Get the bucket that the file will be uploaded to.
-        bucket = gcs.get_bucket(conf_settings.GOOGLE_CLOUD_STORAGE_BUCKET)
-
-        # Create a new blob and upload the file's content.
-        blob = bucket.blob('media/'+uploaded_filename)
-
-        uploaded_file = form.instance.input_photo
-        blob.upload_from_string(
-            uploaded_file.read(),
-            # content_type=uploaded_file.content_type
-        )
-
-        # The public URL can be used to directly access the uploaded file via HTTP.
-        print("blob path:", blob.path)
-        print("blob purl:", blob.public_url)
-        # print("blob help:", blob.path_helper(conf_settings.GOOGLE_CLOUD_STORAGE_BUCKET, uploaded_file))
-
-        form.instance.input_photo = uploaded_filename #blob.path
-        print("form.instance.input_photo ", form.instance.input_photo)
+        # form.instance.input_photo = filename_on_cloud #blob.path
+        print("(673) form.instance.input_photo ", form.instance.input_photo)
         ### --------- GOOGLE CLOUD STORAGE COMPATIBILITY ----------- ###
 
         # if no record was specified, create new record and assign to selected object:
@@ -686,9 +768,24 @@ class PhotoAnalysisCreate(CreateView):
         else:
             form.instance.title = uploaded_filename
 
+        # save the current changes to get the ID (needed for filename generation)
+        form.save()
+        print("form pk1:", form.instance.pk)
+
+        filename_on_cloud = make_cloud_filename(hide_username(self.request.user),
+                                                form.instance.project_id.pk,
+                                                mcd_record.pk, form.instance.pk)
+
+        upload_file_to_cloud(form.instance.input_photo, filename_on_cloud)
+        form.instance.input_photo = filename_on_cloud
+
+        # clear temporarily saved files in App Engine /tmp/
+        clear_tmp_dir()
+
         # save the changes made to the database ...
         # ... and get the new assigned ID (primary key by task.id)
         task = form.save()
+        print("form pk2:", form.instance.pk)
 
         # update the number of records of an object:
         from django.db.models import Count
@@ -712,11 +809,378 @@ class PhotoAnalysisCreate(CreateView):
                              form.instance.uploaded_by_user_id,
                              form.instance.input_photo,
                              form.instance.output_photo,
-                             form.instance.analysis_complete).start()
+                             form.instance.analysis_complete,
+                             hide_username(self.request.user), form.instance.project_id.pk,
+                             mcd_record.pk, form.instance.pk
+                             ).start()
 
         return super(PhotoAnalysisCreate, self).form_valid(form)
 
-class PhotoAnalysisUpdate(UpdateView):
+
+class ProjectUpdate(generic.UpdateView):
+    # database model we will allow the user to edit/fill-in
+    model = MCD_Project
+    # form = 'mcd/mcd_record_update_form.html'
+
+    # what attributes do we allow the user to edit?
+    # fields = ['title', 'project_id']
+    template_name_suffix = '_update_form'
+    previous_name = ""
+
+    form_class = MCD_ProjectFORM
+
+    # def form_valid(self, form):
+    #     print("form filled in", form.instance.reanalyse)
+    #     return super(PhotoAnalysisUpdate, self).form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        # get current object primary key (id):
+        current_object = self.kwargs['pk']
+
+        data = super().get_context_data(**kwargs)
+        data['current_id'] = int(current_object)
+        return data
+
+    def form_invalid(self, form):
+        print("GOT form invalid")
+        print("form is invalid")
+        return HttpResponse("form is invalid.. this is just an HttpResponse object")
+
+    def form_valid(self, form):
+        print("editing form valid")
+        print(form.fields["title"])
+        print(form.cleaned_data.get("title"))
+        print("end")
+
+        pk = self.kwargs.get("pk")
+        print("pk = ", pk)
+
+        current_project = MCD_Project.objects.get(pk=pk)
+        self.previous_name = current_project.title
+
+        current_project.title = form.cleaned_data.get("title")
+        current_project.save()
+
+        messages.success(self.request,
+                         'Successfully renamed record from <b>'+self.previous_name+' to <b>'+current_project.title+'</b>.',
+                         extra_tags='success')
+        return redirect('mcd:object-list')
+
+
+# class RecordDelete(DeleteView):
+class ProjectDelete(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
+    # database model we will allow the user to edit/fill-in
+    model = MCD_Project
+
+    def test_func(self):
+        # not allow the user who has not uploaded it to access the data
+        requested_project = MCD_Project.objects.get(pk=self.kwargs['pk'])
+        if not requested_project.uploaded_by_user_id.pk == self.request.user.pk:
+            # return HttpResponseForbidden("Unauthorised Access")
+            return False
+        else:
+            return True
+
+    def post(self, request, *args, **kwargs):
+        current_project = self.get_object()  # Add this to load the object
+
+        print("deleting project ", current_project.title)
+        print("records connected with this record:")
+
+        records_in_project = MCD_Record.objects.filter(project_id=current_project) \
+            .values_list('project_id', flat=True).first()
+        associated_records = MCD_Record.objects.filter(project_id=records_in_project)
+
+        print("Listing:", associated_records )
+
+        for mcd_record in associated_records:
+            record_name = mcd_record.title
+            delete_record(mcd_record)
+            print("[INFO] Finished deleting record:", record_name)
+
+        # delete the project itself:
+        self.delete(request, *args, **kwargs)
+
+        # success message and redirect back to project view
+        messages.success(self.request,
+                         'Successfully deleted project '+current_project.title,
+                         extra_tags='success')
+        return redirect('mcd:object-list')
+
+    # messages.success(self.request,
+    #                  'Successfully renamed record from <b>' + self.previous_name + ' to <b>' + current_record.title + '</b>.',
+    #                  extra_tags='success')
+    # return redirect('mcd:detailed_object', current_project.pk)
+    success_url = reverse_lazy('mcd:index')
+
+# def delete_user(request, username):
+#     try:
+#         u = User.objects.get(username = username)
+#         u.delete()
+#         messages.success(request, "The user is deleted")
+#
+#     except User.DoesNotExist:
+#         messages.error(request, "User doesnot exist")
+#         return redirect('mcd:index')
+#
+#     except Exception as e:
+#         return redirect('mcd:index')
+#
+#     return redirect('mcd:index')
+
+class UserProfile(View):
+    model = User
+
+    # html file the form is included in:
+    # template_name = 'mcd/user_profile.html'
+    template_name = 'mcd/user_profile.html'
+
+    # if the request it 'get', just display the blank form:
+    def get(self, request):
+        return render(request, self.template_name, {'username' : request.user,
+                                                    'email' : request.user.email})
+
+class UserUpdate(View):
+
+    model = User
+
+    # which form do we want to use:
+    form_class = UserUpdateForm
+    # html file the form is included in:
+    # template_name = 'mcd/user_profile.html'
+    template_name = 'mcd/user_update_form.html'
+
+    # if the request it 'get', just display the blank form:
+    def get(self, request):
+        # by default - no data (context = None)
+        form = self.form_class(None)
+
+        # form = UserUpdateForm(data=request.POST, instance=request.user)
+
+        return render(request, self.template_name, {'form' : form,
+                                                    'username' : request.user,
+                                                    'email' : request.user.email})
+
+    # when user fills in the registration information, ...
+    # ... need to add them to database:
+    def post(self, request):
+        # form = self.form_class(request.POST)
+        form = UserUpdateForm(data=request.POST, instance=request.user)
+
+        if form.is_valid():
+            # creates an object from the form ...
+            # ... it does not save to database yet (storing locally)
+            # user = form.save(commit=False)
+            # format the data
+            email    = form.cleaned_data['email']
+
+            # set the user as inactive until they confirm their email:
+            # request.user.is_active = False
+            # user.save()
+            user = User.objects.filter(pk=request.user.pk).update(email=email)
+            user = User.objects.filter(pk=request.user.pk).update(is_active=False)
+
+            user = User.objects.get(pk=request.user.pk)
+
+            print("ID853 user saved")
+
+            current_site = get_current_site(request)
+            mail_subject = 'Activate your MCD account.'
+            message = render_to_string('mcd/activate_email.html', {
+                'user': user,
+                'domain': current_site.domain,
+                'uidb64': force_text(urlsafe_base64_encode(force_bytes(user.pk))),
+                'token': account_activation_token.make_token(user),
+            })
+            to_email = form.cleaned_data.get('email')
+
+            print("ID879 email (to_email)", to_email)
+
+            email = EmailMessage(
+                mail_subject, message, to=[to_email]
+            )
+            email.send()
+
+            print("email is sent to ", to_email)
+
+            logout(request)
+
+            messages.warning(request,
+                             'Warning: Since you changed the email, the account is no longer active. '
+                             'Please check your email inbox and confirm your email before logging in',
+                             extra_tags='warning')
+            return redirect('mcd:login')
+
+        else:
+            messages.error(request,
+                           form.errors.as_text(),
+                           extra_tags='danger')
+            return redirect('mcd:profile-update')
+
+
+    # def get(self):
+    #
+    # def post(self, request):
+    #     kwargs = {'data': request.POST}
+    #     try:
+    #         kwargs['instance'] = User.objects.get(username=request.POST['username'])
+    #     except:
+    #         pass
+    #     form = UserForm(kwargs **)
+    #     if form.is_valid():
+    #         user = form.save(commit=False)
+
+
+class RecordUpdate(generic.UpdateView):
+    # database model we will allow the user to edit/fill-in
+    model = MCD_Record
+    # form = 'mcd/mcd_record_update_form.html'
+
+    # what attributes do we allow the user to edit?
+    # fields = ['title', 'project_id']
+    template_name_suffix = '_update_form'
+    previous_name = ""
+
+    form_class = MCD_RecordFORM
+
+    # def form_valid(self, form):
+    #     print("form filled in", form.instance.reanalyse)
+    #     return super(PhotoAnalysisUpdate, self).form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        # get current object primary key (id):
+        current_object = self.kwargs['pk']
+
+        data = super().get_context_data(**kwargs)
+        data['current_id'] = int(current_object)
+        return data
+
+    def form_invalid(self, form):
+        print("GOT form invalid")
+        print("form is invalid")
+        return HttpResponse("form is invalid.. this is just an HttpResponse object")
+
+    def form_valid(self, form):
+        print("editing form valid")
+        print(form.fields["title"])
+        print(form.fields["project_id"])
+        print(form.cleaned_data.get("title"))
+        print(form.cleaned_data.get("project_id"))
+        print("end")
+
+        pk = self.kwargs.get("pk")
+        print("pk = ", pk)
+
+        current_record = MCD_Record.objects.get(pk=pk)
+        self.previous_name = current_record.title
+
+        current_record.title = form.cleaned_data.get("title")#form.fields["title"]
+        current_record.project_id = form.cleaned_data.get("project_id") #form.fields["project_id"]
+
+        current_record.save()
+        # return super(RecordUpdate, self).form_valid(form)
+
+        print("debug recv POST", pk)
+        # form = self.form_class(None)
+
+        current_record = MCD_Record.objects.get(pk=pk)
+        current_project = current_record.project_id
+
+        messages.success(self.request,
+                         'Successfully renamed record from <b>'+self.previous_name+' to <b>'+current_record.title+'</b>.',
+                         extra_tags='success')
+        return redirect('mcd:detailed_object', current_project.pk)
+
+
+    # def post(self, request, pk):
+    #     print("debug recv POST", pk)
+    #     # form = self.form_class(None)
+    #
+    #     current_record = MCD_Record.objects.get(pk=pk)
+    #     current_project = current_record.project_id
+    #
+    #     messages.success(request,
+    #                      'Successfully renamed record from <b>'+self.previous_name+' to <b>'+current_record.title+'</b>.',
+    #                      extra_tags='success')
+    #     return redirect('mcd:detailed_object', current_project.pk)
+
+
+def delete_record(record_to_delete):
+
+    print("deleting record ", record_to_delete.title)
+    print("photo analysis connected with this record:")
+
+    image_ids_in_record = MCD_Photo_Analysis.objects.filter(record_id=record_to_delete.pk) \
+        .values_list('record_id', flat=True).first()
+    associated_img_analysis = MCD_Photo_Analysis.objects.filter(record_id=image_ids_in_record)
+
+    print("Listing:", associated_img_analysis)
+
+    for img_analysis in associated_img_analysis:
+        print("deleting 'input_photo':", img_analysis.input_photo.name)
+        delete_file_from_cloud_media(img_analysis.input_photo.name)
+
+        print("deleting 'overlay_photo':", img_analysis.overlay_photo.name)
+        delete_file_from_cloud_media(img_analysis.overlay_photo.name)
+
+        print("deleting 'output_photo':", img_analysis.output_photo.name)
+        delete_file_from_cloud_media(img_analysis.output_photo.name)
+
+        print("deleting 'crack_labels_photo':", img_analysis.crack_labels_photo.name)
+        delete_file_from_cloud_media(img_analysis.crack_labels_photo.name)
+
+        print("deleting 'crack_labels_csv':", img_analysis.crack_labels_csv.name)
+        delete_file_from_cloud_media(img_analysis.crack_labels_csv.name)
+
+        print("------------------")
+
+    # get current project:
+    current_project = MCD_Project.objects.get(pk=record_to_delete.project_id.pk)
+
+    # delete the record itself:
+    record_to_delete.delete()
+
+    # compute how many records are uploaded in total in the object:
+    # (NOTE - +1 added since the new record is not yet saved to database ...
+    #  .. so the counter would not count the image just uploaded)
+    current_project.num_records = current_project.mcd_record_set.count()
+    current_project.num_images = current_project.mcd_photo_analysis_set.count()
+    current_project.save()
+
+# class RecordDelete(DeleteView):
+class RecordDelete(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
+    # database model we will allow the user to edit/fill-in
+    model = MCD_Record
+
+    def test_func(self):
+        # not allow the user who has not uploaded it to access the data
+        requested_record = MCD_Record.objects.get(pk=self.kwargs['pk'])
+        if not requested_record.uploaded_by_user_id.pk == self.request.user.pk:
+            # return HttpResponseForbidden("Unauthorised Access")
+            return False
+        else:
+            return True
+
+    def post(self, request, *args, **kwargs):
+        record_to_delete = self.get_object()
+        record_name = record_to_delete.title
+        record_parent_project = record_to_delete.project_id
+
+        delete_record(record_to_delete)
+
+        # success message and redirect back to project view
+        messages.success(self.request,
+                         'Successfully deleted record '+record_name,
+                         extra_tags='success')
+        return redirect('mcd:detailed_object', record_parent_project.pk)
+
+    # messages.success(self.request,
+    #                  'Successfully renamed record from <b>' + self.previous_name + ' to <b>' + current_record.title + '</b>.',
+    #                  extra_tags='success')
+    # return redirect('mcd:detailed_object', current_project.pk)
+    success_url = reverse_lazy('mcd:index')
+
+class PhotoAnalysisUpdate(LoginRequiredMixin, UpdateView):
     # database model we will allow the user to edit/fill-in
     model = MCD_Photo_Analysis
     template_name = 'mcd/mcd_photo_analysis_update_form.html'
@@ -724,9 +1188,9 @@ class PhotoAnalysisUpdate(UpdateView):
     # what attributes do we allow the user to input?
     fields = ['input_photo', 'project_id', 'record_id', 'scale']
 
-    # def form_valid(self, form):
-    #     print("form filled in", form.instance.reanalyse)
-    #     return super(PhotoAnalysisUpdate, self).form_valid(form)
+    def form_valid(self, form):
+        print("form filled in", form.instance.reanalyse)
+        return super(PhotoAnalysisUpdate, self).form_valid(form)
 
     def get_context_data(self, **kwargs):
         # get current object primary key (id):
@@ -753,7 +1217,10 @@ class PhotoAnalysisUpdate(UpdateView):
                              current_image.uploaded_by_user_id,
                              current_image.input_photo,
                              current_image.output_photo,
-                             current_image.analysis_complete).start()
+                             current_image.analysis_complete,
+                             hide_username(self.request.user), current_image.project_id.pk,
+                             current_image.record_id.pk, current_image.pk
+                             ).start()
 
         # return redirect('mcd:index')
         return redirect('mcd:detailed_record_image_pk', current_image.record_id.pk, pk)
@@ -791,7 +1258,9 @@ class ObjectCreate(CreateView):
         form.save()
 
         # return super(ObjectCreate, self).form_valid(form)
-        messages.success(self.request, form.instance.title)
+        messages.success(self.request,
+                         'Project '+form.instance.title+' successfully created!',
+                         extra_tags='danger')
         return redirect('mcd:object-list')
 # =============================== Filler Views ================================== #
 
@@ -820,6 +1289,25 @@ def submit_to_analysis(request):
                           'success_message': "Image "+image_to_analyse+" successfully uploaded for analysis"
                       })
 
+def activate(request, uidb64, token):
+    print("reached 'activate', with uidb64", uidb64, ", token", token)
+    try:
+        uid = force_text(urlsafe_base64_decode(uidb64))
+        user = User.objects.get(pk=uid)
+    except(TypeError, ValueError, OverflowError, User.DoesNotExist):
+        user = None
+    if user is not None and account_activation_token.check_token(user, token):
+        user.is_active = True
+        user.save()
+        login(request, user)
+        # return redirect('home')
+        # return HttpResponse('Thank you for your email confirmation. Now you can login your account.')
+        messages.warning(request,
+                         'Thank you for your email confirmation. Now you can login your account.',
+                         extra_tags='success')
+        return redirect('mcd:login')
+    else:
+        return HttpResponse('Activation link is invalid!')
 
 class UserFormView(View):
     # which form do we want to use:
@@ -837,7 +1325,6 @@ class UserFormView(View):
     # ... need to add them to database:
     def post(self, request):
         form = self.form_class(request.POST)
-
         if form.is_valid():
             # creates an object from the form ...
             # ... it does not save to database yet (storing locally)
@@ -848,7 +1335,31 @@ class UserFormView(View):
             password = form.cleaned_data['password']
             # passwords are hashed, set password dynamically
             user.set_password(password)
+            # set the user as inactive until they confirm their email:
+            user.is_active = False
             user.save()
+
+            print("ID853 user saved")
+
+            current_site = get_current_site(request)
+            mail_subject = 'Activate your MCD account.'
+            message = render_to_string('mcd/activate_email.html', {
+                'user': user,
+                'domain': current_site.domain,
+                'uidb64': force_text(urlsafe_base64_encode(force_bytes(user.pk))),
+                'token': account_activation_token.make_token(user),
+            })
+            to_email = form.cleaned_data.get('email')
+
+            print("ID879 email (to_email)", to_email)
+
+            email = EmailMessage(
+                mail_subject, message, to=[to_email]
+            )
+            email.send()
+
+            print("email is sent to ", to_email)
+            # return HttpResponse('Please confirm your email address to complete the registration')
 
             # return User objects given correct credentials:
             user = authenticate(username=username, email=email, password=password)
@@ -864,7 +1375,23 @@ class UserFormView(View):
                     return redirect('mcd:index')
             else:
                 print("redirecting user to form ...")
-                return render(request, self.template_name, {'form': form})
+                # return render(request, self.template_name, {'form': form})
+                messages.warning(request,
+                                 'Warning: The newly created account is not active, '
+                                 'please check your email inbox and confirm your email before logging in',
+                                 extra_tags='warning')
+                return redirect('mcd:login')
+
+        else:
+            print("form invalid:")
+            print(form.errors)
+
+            messages.error(request,
+                           form.errors.as_text(),
+                           extra_tags='danger')
+            return redirect('mcd:register')
+
+
 
 
 def add_scale(request, pk):
@@ -976,10 +1503,12 @@ def logout_view(request):
 def login_view(request):
     if request.method == 'POST':
         form = AuthenticationForm(data=request.POST)
-
+        print("login form posted ... ")
+        print("form:", form, "valid? ", form.is_valid())
         if form.is_valid():
             # log in the user ...
             user = form.get_user()
+            print("user - active? ", user.is_active)
             login(request, user)
 
             # if there is an active redirect (after the
@@ -993,6 +1522,25 @@ def login_view(request):
                 # ... instead it just renders the index page ...
                 # ... with a different URL in place, ...
                 # ... which is not desirable)
+        else:
+            # user = form.get_user()
+            try: # give a custom message when account has not been activated:
+                user = User.objects.get(username=form.cleaned_data['username'])
+                print("form invalid, is user active?", user.is_active)
+                if user.is_active:
+                    messages.error(request,
+                                   'Invalid Log In Credentials',
+                                   extra_tags='danger')
+                else:
+                    messages.warning(request,
+                                     'Warning: The account is not active, please confirm your email before logging in',
+                                     extra_tags='warning')
+                return redirect('mcd:login')
+            except: # when the account is active:
+                messages.error(request,
+                               'Invalid Log In Credentials',
+                               extra_tags='danger')
+                return redirect('mcd:login')
 
     else: # get
         form = AuthenticationForm
