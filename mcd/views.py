@@ -91,9 +91,15 @@ class IndexView(generic.ListView):
     
     def get_context_data(self, **kwargs):
         data = super().get_context_data(**kwargs)
-        data['num_projects'] = self.request.user.mcd_project_set.count()
-        data['num_records']  = self.request.user.mcd_record_set.count()
-        data['num_images']   = self.request.user.mcd_photo_analysis_set.count()
+        data['num_projects'] = 0
+        data['num_records'] = 0
+        data['num_images'] = 0
+        try:
+            data['num_projects'] = self.request.user.mcd_project_set.count()
+            data['num_records']  = self.request.user.mcd_record_set.count()
+            data['num_images']   = self.request.user.mcd_photo_analysis_set.count()
+        except:
+            pass
         return data
     
     def get_queryset(self):
