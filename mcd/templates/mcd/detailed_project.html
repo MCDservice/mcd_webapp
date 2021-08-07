@@ -14,6 +14,12 @@
     {% endif %}
     <h1>Project <strong class="label-grey-outline">{{ project.title }}</strong> |
         <strong class="label-grey">ID #{{ project.id }}</strong></h1>
+        <a class="text-abel" href="{% url 'mcd:object-list' %}">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="glyphicon glyphicon-chevron-left"></span>&nbsp
+            Back to Project List
+        </a>
+        <br>
         In this project, there are: {{ project.num_records }} <i>records</i> and {{ project.num_images }} <i>images</i>
         <ul class="list-group">
         {% for record in records_in_project %}

@@ -17,7 +17,14 @@
                         <p>No project currently exists to assign this new image to.</p>
                         <p>Please create a project first (by clicking the '+') before uploading an image!</p>
                     {% endif %}
-
+                    <p>
+                        Note: a "Project" in this case is recommended to be an individual house,
+                        whereas "Records" are recommended to be images of the different walls.
+                    </p>
+                    <p>
+                        (example - "Project #1 House at 11 ABC Street" can have 2 records titled "Record #1 - South Wall" and
+                        "Record #2 - North Wall")
+                    </p>
                     {% for field in form %}
                         <div class="form-group">
                             <div  class="col-sm-offset-2 col-sm-10">
@@ -25,10 +32,20 @@
                                     {{ field.errors }}
                                 </span>
                             </div>
-
+                            {% if field.html_name == "record_id" %}
+                                <p>If you do not choose an existing record ID, a new one will be created automatically,
+                                setting the title same as the given input photo title (or if the photo title is left as "Untitled",
+                                then the record title is set to the original photo name)</p>
+                                <p>
+                                Records can have many images associated with it, and the intended use is uploading images of the same wall
+                                to the same record over time (to see how the wall crack progresses at the same spot over time)
+                                </p>
+                            {% endif %}
                             <label class="control-label col-sm-2"
                                    for="">
-                                {{ field.label_tag }}
+                                <p {% if field.field.required %} class="required" {% endif %}>
+                                    {{ field.label_tag }} {% if field.field.required %} (required) {% endif %}
+                                </p>
                             </label>
                             {# Input area / dropdown / selection #}
                             <div class="col-sm-10">

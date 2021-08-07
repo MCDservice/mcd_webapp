@@ -34,7 +34,12 @@
                         <p>Enter new email below:</p>
                         <form class="form-horizontal" role="form" method="post">
                             {% csrf_token %}
-                            {% include 'mcd/form/form_template.html' %}
+
+                            {% for field in form %}
+                                {{ field }}
+                            {% endfor %}
+
+{#                            {% include 'mcd/form/form_template.html' %}#}
 
 {#                          if the user is to be redirected after logging in ... #}
 {#                          ... (to a page other than index/main)  #}

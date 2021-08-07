@@ -354,6 +354,36 @@ strong{
     padding: 0px 8px 0px 8px;
 }
 
+.input-group-addon{
+    background-color: #5cb85c;
+    color: white;
+}
+
+.back-green{
+    background-color: #5cb85c !important;
+}
+
+.back-dark-black{
+    background: #212121; !important;
+}
+
+.margin-top-15px{
+    margin-top: 15px;
+}
+
+.margin-bottom-15px{
+    margin-bottom: 15px;
+}
+
+.margin-bottom-5px{
+    margin-bottom: 5px;
+}
+
+.required .required:after {
+  content:"*";
+  color:red;
+}
+
 /* --------------------------------- SIDEBAR STYLES ------------------------------------ */
 /* Sidebar styles for the record detailed page: */
 .sidenav {

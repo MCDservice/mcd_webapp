@@ -16,7 +16,12 @@
                 </div>
             {% endfor %}
         {% endif %}
-
+        <a class="text-abel"
+           href="{% url 'mcd:index' %}">
+            <span class="sr-only">Back to Home Page</span>
+            <span class="glyphicon glyphicon-chevron-left"></span>&nbsp
+            Back to Home Page
+        </a>
         {% for object in user_objects %}
 
                 <li class="list-group-item">

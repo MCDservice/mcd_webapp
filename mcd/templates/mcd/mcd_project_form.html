@@ -1,4 +1,5 @@
 {% extends 'mcd/base.html' %}
+{% load crispy_forms_tags %}
 {% block title %} MCD | Add Object {% endblock %}
 
 {% block body %}
@@ -6,12 +7,13 @@
     <div class="row">
         <div class="col-sm-12 col-md-7">
             <div class="panel-body">
-
+                {% include 'mcd/navigation/back_to_project_list.html' %}
                 <form class="form-horizontal" action="" method="post"
                  enctype="multipart/form-data">
                     {% csrf_token %}
 
-                    {% include 'mcd/form/form_template.html' %}
+                    {{ form|crispy }}
+{#                    {% include 'mcd/form/form_template.html' %}#}
 
                     <div class="form-group">
                         <div class="col-sm-offset-2 col-sm-10">

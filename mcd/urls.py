@@ -86,7 +86,9 @@ urlpatterns = [
     url(r'^update/(?P<pk>[0-9]+)$', login_required(login_url="/mcd/login")
         (views.PhotoAnalysisUpdate.as_view()), name='update'),
     url(r'^delete/(?P<pk>[0-9]+)$', login_required(login_url="/mcd/login")
-        (views.PhotoAnalysisDelete.as_view()), name='upload'),
+        (views.PhotoAnalysisDelete.as_view()), name='delete-photo'),
+    url(r'^reanalyse/(?P<pk>[0-9]+)$', login_required(login_url="/mcd/login")
+        (views.PhotoAnalysisReanalyse.as_view()), name='reanalyse-photo'),
 
     # mcd/edit-record/pk
     url(r'^edit-record/(?P<pk>[0-9]+)$', login_required(login_url="/mcd/login")(views.RecordUpdate.as_view()),

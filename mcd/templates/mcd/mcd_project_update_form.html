@@ -1,4 +1,5 @@
 {% extends 'mcd/base.html' %}
+{% load crispy_forms_tags %}
 {% block title %} MCD | Update {% endblock %}
 
 {% block body %}
@@ -6,30 +7,37 @@
     <div class="row">
         <div class="col-sm-12 col-md-7">
             <div class="panel-body">
-
+                {% include 'mcd/navigation/back_to_project_list.html' %}
                 <form class="form-horizontal" action="" method="post"
                  enctype="multipart/form-data">
                     {% csrf_token %}
 
-                    {% for field in form %}
-                        <div class="form-group">
-                            <div  class="col-sm-offset-2 col-sm-10">
-                                <span class="text-danger small">
-                                    {{ field.errors }}
-                                </span>
-                            </div>
+                    {{ form|crispy }}
 
-                            <label class="control-label col-sm-2"
-                                   for="">
-                                {{ field.label_tag }}
-                            </label>
+{#                    {% for field in form %}#}
+{#                        <div class="form-group">#}
+{#                            <div  class="col-sm-offset-2 col-sm-10">#}
+{#                                <span class="text-danger small">#}
+{#                                    {{ field.errors }}#}
+{#                                </span>#}
+{#                            </div>#}
+{##}
+{#                            <label class="control-label col-sm-2"#}
+{#                                   for="">#}
+{#                                <p {% if field.field.required %} class="required" {% endif %}>#}
+{#                                    {{ field.label_tag }} {% if field.field.required %} (required) {% endif %}#}
+{#                                </p>#}
+{#                            </label>#}
                             {# Input area / dropdown / selection #}
-                            <div class="col-sm-10">
-                                {{ field }}
-                            </div>
-
-                        </div>
-                    {% endfor %}
+{#                            <input type="text" class="form-control">#}
+{##}
+{##}
+{#                            <div class="col-sm-10">#}
+{#                                {{ field }}|crispy#}
+{#                            </div>#}
+{##}
+{#                        </div>#}
+{#                    {% endfor %}#}
 
 
                     <div class="form-group floating-wrapper">

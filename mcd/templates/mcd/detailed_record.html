@@ -145,21 +145,27 @@
 
             <ul class="list-unstyled components">
                 <li class="active">
+                    <a href="../add-scale-3/{{ current_id }}/1/1/g/?11,11"
+                       class="btn btn-success margin-top-15px margin-bottom-15px dropdown-toggle text-sidebar back-green hideable">
+                        <span class="glyphicon glyphicon-resize-horizontal" aria-hidden="true"></span>&nbsp
+                        Update Scale Interactively
+                    </a>
                     <a href="#homeSubmenu"
                        data-toggle="collapse"
                        aria-expanded="false"
-                       class="dropdown-toggle text-sidebar">
+                       class="btn btn-success margin-top-15px margin-bottom-15px dropdown-toggle text-sidebar back-green">
                         <i class="fas fa-home"></i>
                         Compare
                     </a>
                     <ul class="collapse list-unstyled" id="homeSubmenu">
                         <li>
-                            <a href="{% url 'mcd:detailed_record_compare1' record.id 'comparison1'  display_image.id display_image_2.id %}">
+                            <a class="btn btn-success back-dark-black margin-bottom-5px text-sidebar"
+                               href="{% url 'mcd:detailed_record_compare1' record.id 'comparison1'  display_image.id display_image_2.id %}">
                                 Side-by-side
                             </a>
                         </li>
                         <li>
-                            <a href="{% url 'mcd:detailed_record_compare1' record.id 'comparison2'  display_image.id display_image_2.id %}">
+                            <a class="btn btn-success back-dark-black margin-bottom-5px text-sidebar" href="{% url 'mcd:detailed_record_compare1' record.id 'comparison2'  display_image.id display_image_2.id %}">
                                 Switching
                             </a>
                         </li>
@@ -221,8 +227,19 @@
 
         <!-- Page Content  -->
         <div id="content">
-
+            {% if messages %}
+                {% for message in messages %}
+                    <div {% if message.tags %} class="alert alert-{{ message.extra_tags}}"{% endif %}>
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
             <nav class="navbar navbar-expand-lg navbar-light bg-light">
+                <a class="text-abel" href="{% url 'mcd:detailed_object' record.project_id.pk %}">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="glyphicon glyphicon-chevron-left"></span>&nbsp
+                    Back to Project "{{ record.project_id.title }}"
+                </a>
                 <div class="container-fluid div-flex">
                     <button type="button" id="sidebarCollapse" class="btn btn-toggle-menu margin-right-30px">
                         <span class="sr-only">Toggle navigation</span>

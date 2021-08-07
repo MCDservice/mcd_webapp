@@ -1,54 +1,4 @@
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta name="viewport" content="width=device-width, initial-scale=0.8">
-
-    <title>
-        {% block title %}
-            MCD
-        {% endblock %}
-    </title>
-
-    {# load in the static files: #}
-    {% load static %}
-    {# Bootstrap Stylesheets. Introduced first, for custom styles to allow overwriting them#}
-    <link rel="stylesheet"
-          href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
-    {# jquery #}
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"
-            integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4="
-            crossorigin="anonymous"></script>
-
-    {# map highlight - for highlighting cracks on mouseover   #}
-{#    <script type='text/javascript'#}
-{#            src='https://davidlynch.org/projects/maphilight/jquery.maphilight.js'>#}
-{#            </script>#}
-{##}
-{#    <script type="text/javascript">#}
-{#        $(document).ready(function ()#}
-{#        {#}
-{#            jQuery('#ImageMap1').maphilight();#}
-            {#$('.map').maphilight({ alwaysOn: true });#}
-            {#$('.mapHiLight').maphilight({ stroke: false, fillColor: '009DDF', fillOpacity: 1 });#}
-{#            // uncomment this line for normal hover highlighting#}
-{#            //$('.map').maphilight();#}
-{#        });#}
-{#    </script>#}
-
-
-<!-- fonts used for the home page: -->
-    <link href='https://fonts.googleapis.com/css?family=Bungee Shade' rel='stylesheet'>
-    <link href='https://fonts.googleapis.com/css?family=Abel' rel='stylesheet'>
-    <!-- Latest compiled and minified Bootstrap JavaScript -->
-
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"
-            integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa"
-            crossorigin="anonymous"></script>
-    {# Custom styles, (introduced later in code for overwriting the Bootstrap if needed) #}
-    <link rel="stylesheet" href="{% static 'mcd/style.css' %}">
-</head>
-<body>
+{% block navbar %}
     <nav class="navbar navbar-inverse">
         <div class="container-fluid">
             <!-- Brand and toggle get grouped for better mobile display -->
@@ -154,11 +104,5 @@
             </div><!-- /.navbar-collapse -->
         </div><!-- /.container-fluid -->
     </nav>
-{#  after this, include any block of code  #}
-    <div class="content-records">
-        {% block body %}
-        {% endblock %}
-    </div>
 
-</body>
-</html>
+{% endblock %}

@@ -38,8 +38,7 @@ class MCD_Project(models.Model):
         #                kwargs={'pk' : self.pk})       # make the url /detail/pk)
 
     def __str__(self):
-        return "(user: " + str(self.uploaded_by_user_id) + \
-               ") | " + str(self.title)
+        return "#"+str(self.pk) + ' "' + str(self.title)+'"' + '" | by ' + str(self.uploaded_by_user_id)
 
 class MCD_Record(models.Model):
     """
@@ -52,6 +51,7 @@ class MCD_Record(models.Model):
     num_images = models.IntegerField(null=False, default=0)
 
     def __str__(self):
+        # return "#" + str(self.pk) + ' "' + str(self.title)+'"'
         return "(user: " + str(self.uploaded_by_user_id) + \
                ") | " + str(self.title)
 
@@ -87,8 +87,9 @@ class MCD_Photo_Analysis (models.Model):
     # whenever we create a new photo analysis record, ...
     # ... add to database and redirect to the record detailed page::
     def get_absolute_url(self):
-        return reverse('mcd:photo_analysis_detailed', # view to redirect to
-                       kwargs={'pk' : self.pk})       # make the url /detail/pk)
+        return reverse('mcd:detailed_record_image_pk', # view to redirect to
+                       kwargs={ 'pk' : self.record_id.pk,
+                                'image_pk' : self.pk})       # make the url /detail/pk)
 
     def __str__(self):
         return "(user: " + str(self.uploaded_by_user_id) + \
