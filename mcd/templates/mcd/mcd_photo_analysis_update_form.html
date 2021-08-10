@@ -6,14 +6,19 @@
 
 <div class="container-fluid">
     <div class="row">
-        <div class="col-sm-12 col-md-7">
+        <div class="col-sm-12">
             <div class="panel-body">
                 {% include 'mcd/navigation/photo_analysis_nav.html' %}
-                <form class="form-horizontal" action="" method="post"
-                 enctype="multipart/form-data">
+                <form id="photo_analysis_form"
+                      get-user-records-url="{% url 'mcd:get_user_records' %}"
+                      class="form-horizontal"
+                      action=""
+                      method="post"
+                      enctype="multipart/form-data">
                     {% csrf_token %}
 
 {#                    {{ form|crispy }}#}
+                    "{{ current_id }}"
                     {% crispy form %}
 
 {#                    <div class="form-group floating-wrapper">#}
@@ -26,8 +31,8 @@
 
                 </form>
 
-                <div class="form-group floating-wrapper">
-                    <div class="col-sm-offset-2 col-sm-10">
+                <div class="width100 margin-top-15px">
+                    <div class="float-left">
                         <a class="btn btn-success"
                            onclick="return confirm('Are you sure you want to delete this photo?\n' +
                        'This action is irreversible')"
@@ -37,7 +42,7 @@
                         </a>
                     </div>
 
-                    <div class="col-sm-offset-2 col-sm-10">
+                    <div class="float-right">
                         <a href="{% url 'mcd:reanalyse-photo' photo_analysis.pk %}"
                            class="btn btn-success">
                             Reanalyse Photo
@@ -54,12 +59,82 @@
 $(document).ready(function ()
 {
     $("#interactive-scale-btn").attr("onclick",'window.location.href="../add-scale-3/{{ current_id }}/1/1/g/?11,11"');
-    // just for now:
-    $("#id_project_id").css("display", "none");
-    $('label[for="id_project_id"]').hide();
-    $('label[for="id_record_id"]').hide();
-    $("#id_record_id").css("display", "none");
+    $("#add-project-btn").attr("onclick",'window.location.href="{% url 'mcd:project-add' %}"');
+    $("#id_input_photo").css("display", "none");
+    $("#div_id_input_photo").css("display", "none");
+    $('label[for="id_input_photo"]').hide();
 });
 </script>
+
+<script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+<script>
+   // $(function () {
+   //     dependent_dropdown(); //this calls it on load
+   //     {#$("select#marca").change(dependent_dropdown);#}
+   //     $("#id_project_id").change(dependent_dropdown)
+   // });
+//
+   // function dependent_dropdown()
+   // {
+   //     const url = $("#photo_analysis_form").attr("get-user-records-url");  // get the url of the `load_cities` view
+//
+   //     const project_id = $(this).val();  // get the selected country ID from the HTML input
+   //     {#const user_id = $(this).val();  // get the selected country ID from the HTML input#}
+   //     console.log(project_id);
+//
+   //     $.ajax(
+   //         {   // initialize an AJAX request
+   //             url: url, // set the url of the request (= /persons/ajax/load-cities/ )
+   //             data:
+   //             {
+   //                 'project_id': project_id       // add the country id to the GET parameters
+   //                 {#'project_id': project_id       // add the country id to the GET parameters#}
+   //             },
+   //             success: function (data)
+   //             {   // `data` is the return of the `load_cities` view function
+   //                 {#$("#id_record_id").html(data);  // replace the contents of the city input with the data that came from the server#}
+//
+   //                 let html_data = '<option value="">Create a New Record Automatically</option>';
+   //                 data.forEach(function (city) {
+   //                     html_data += `<option value="${city.id}">${city.title}</option>`
+   //                 });
+   //                 console.log(html_data);
+   //                 $("#id_record_id").html(html_data);
+//
+   //             }
+   //      });
+   // }
+
+    $("#id_project_id").change(function () {
+        const url = $("#photo_analysis_form").attr("get-user-records-url");  // get the url of the `load_cities` view
+
+        const project_id = $(this).val();  // get the selected country ID from the HTML input
+        const user_id = $(this).val();  // get the selected country ID from the HTML input
+        console.log(project_id);
+
+        $.ajax(
+            {   // initialize an AJAX request
+                url: url, // set the url of the request (= /persons/ajax/load-cities/ )
+                data:
+                {
+                    'project_id': project_id       // add the country id to the GET parameters
+                },
+                success: function (data)
+                {   // `data` is the return of the `load_cities` view function
+                    $("#id_record_id").html(data);  // replace the contents of the city input with the data that came from the server
+
+                    let html_data = '<option value="">Create a New Record Automatically</option>';
+                    data.forEach(function (city) {
+                        html_data += `<option value="${city.id}">${city.title}</option>`
+                    });
+                    console.log(html_data);
+                    $("#id_record_id").html(html_data);
+
+                }
+         });
+
+     });//.change();
+</script>
+
 
 {% endblock %}

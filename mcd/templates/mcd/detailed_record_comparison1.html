@@ -20,48 +20,48 @@
         }
     </script>
 
-    <div class="floating-wrapper">
-    <div>
-        <h2>Image 1
-            <a class="label-grey-small text-normal" href="">
-                {{ display_image.title }}
-            </a>
-        </h2>
-        <label for="image1">Choose Image 1:</label>
-        <select id="image1" name="image1" onchange="chooseImg1()" >
-            <option value="" selected>Pick the First Image</option>
-            {% for photo in images_of_record %}
-                <option value="{{ photo.id }}">
-                    #{{ photo.id }} | {{ photo.title }} - {{ photo.datetime_uploaded }}
-                </option>
-            {% endfor %}
-        </select>
-
-        <div class="img-container">
-            <img class="img-scaling" width="640px" height="360px" src="{{ display_image.overlay_photo.url }}">
+    <div class="row floating-wrapper align-baseline">
+        <div class="col-sm-6 padding-1px-lr">
+            <h2>Image 1
+                <a class="label-grey-small text-normal" href="">
+                    {{ display_image.title }}
+                </a>
+            </h2>
+            <label for="image1">Choose Image 1:</label>
+            <select id="image1" name="image1" onchange="chooseImg1()" >
+                <option value="" selected>Pick the First Image</option>
+                {% for photo in images_of_record %}
+                    <option value="{{ photo.id }}">
+                        #{{ photo.id }} | {{ photo.title }} - {{ photo.datetime_uploaded }}
+                    </option>
+                {% endfor %}
+            </select>
+            <div class="image-container">
+                    <img class="image-scaling" src={{ display_image.overlay_photo.url }}>
+            </div>
+        </div>
+        <div class="col-sm-6 padding-1px-lr">
+            <h2>
+                Image 2
+                <a class="label-grey-small text-normal" href="">
+                    {{ display_image_2.title }}
+                </a>
+            </h2>
+            <label for="image2">Choose Image 2:</label>
+            <select id="image2" name="image2" onchange="chooseImg2()">
+                <option value="" selected>Pick the Second Image</option>
+                {% for photo in images_of_record %}
+                    <option value="{{ photo.id }}">
+                        #{{ photo.id }} | {{ photo.title }} - {{ photo.datetime_uploaded }}
+                    </option>
+                {% endfor %}
+            </select>
+            {% if display_image.output_photo %}
+                <div class="image-container">
+                    <img class="image-scaling" src="{{ display_image_2.overlay_photo.url }}">
+                </div>
+            {% endif %}
         </div>
     </div>
-    <div>
-        <h2>
-            Image 2
-            <a class="label-grey-small text-normal" href="">
-                {{ display_image_2.title }}
-            </a>
-        </h2>
-        <label for="image2">Choose Image 2:</label>
-        <select id="image2" name="image2" onchange="chooseImg2()">
-            <option value="" selected>Pick the Second Image</option>
-            {% for photo in images_of_record %}
-                <option value="{{ photo.id }}">
-                    #{{ photo.id }} | {{ photo.title }} - {{ photo.datetime_uploaded }}
-                </option>
-            {% endfor %}
-        </select>
-        {% if display_image.output_photo %}
-            <div class="img-container">
-                <img class="img-scaling" width="640px" height="360px" src="{{ display_image_2.overlay_photo.url }}">
-            </div>
-        {% endif %}
-    </div>
-</div>
+
 {% endblock %}

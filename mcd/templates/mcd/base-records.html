@@ -125,7 +125,7 @@
                                 <form class="logout-link" action="{% url 'mcd:logout' %}" method="post">
                                     {% csrf_token %}
 
-                                        <button class="btn mcd-button " type="submit">
+                                        <button class="btn mcd-button login-btn-padding" type="submit">
                                             <span class="glyphicon glyphicon-log-out" aria-hidden="true"></span>&nbsp
                                             Logout | {{ user.username }}
                                         </button>
@@ -133,14 +133,14 @@
                             {% else %}
                                 <form class="login-link" action="{% url 'mcd:login' %}" method="get">
                                     {% csrf_token %}
-                                    <button class="btn mcd-button" type="submit">
+                                    <button class="btn mcd-button login-btn-padding" type="submit">
                                         <span class="glyphicon glyphicon-log-in" aria-hidden="true"></span>&nbsp
                                         Log In
                                     </button>
                                 </form>
                                 <form class="login-link" action="{% url 'mcd:register' %}" method="get">
                                     {% csrf_token %}
-                                    <button class="btn mcd-button" type="submit">
+                                    <button class="btn mcd-button login-btn-padding" type="submit">
                                         <span class="glyphicon glyphicon-user" aria-hidden="true"></span>&nbsp
                                         Register
                                     </button>

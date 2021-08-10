@@ -51,31 +51,33 @@ class MCD_Record(models.Model):
     num_images = models.IntegerField(null=False, default=0)
 
     def __str__(self):
+        return "#" + str(self.pk) + ' "' + str(self.title) + '"' + '" | by ' + str(self.uploaded_by_user_id)
         # return "#" + str(self.pk) + ' "' + str(self.title)+'"'
-        return "(user: " + str(self.uploaded_by_user_id) + \
-               ") | " + str(self.title)
+        # return "(user: " + str(self.uploaded_by_user_id) + \
+        #        ") | " + str(self.title)
 
 
 
 class MCD_Photo_Analysis (models.Model):
     uploaded_by_user_id = models.ForeignKey(User, on_delete=models.CASCADE)
     project_id           = models.ForeignKey(MCD_Project, default=1, on_delete=models.CASCADE)
-    record_id           = models.ForeignKey(MCD_Record, null=True, blank=True, on_delete=models.CASCADE)
+    record_id            = models.ForeignKey(MCD_Record, null=True, blank=True, on_delete=models.CASCADE)
 
-    title               = models.CharField(max_length=100, null=False, default="Untitled")
-    input_photo         = models.FileField(null=False, blank=False)
-    overlay_photo       = models.FileField(null=True, blank=True)
-    output_photo        = models.FileField(null=True, blank=True)
-    crack_labels_photo  = models.FileField(null=True, blank=True)
+    title                = models.CharField(max_length=100, null=False, default="Untitled")
+    input_photo          = models.FileField(null=False, blank=False)
+    overlay_photo        = models.FileField(null=True, blank=True)
+    output_photo         = models.FileField(null=True, blank=True)
+    crack_labels_photo   = models.FileField(null=True, blank=True)
 
-    crack_labels_csv    = models.FileField(null=True, blank=True)
-    analysis_complete   = models.BooleanField(null=False, default=False)
+    crack_labels_csv     = models.FileField(null=True, blank=True)
+    analysis_status_json = models.FileField(null=True, blank=True)
+    analysis_complete    = models.BooleanField(null=False, default=False)
 
-    crack_length        = models.DecimalField(null=True, default=-1,
-                                              max_digits=8, decimal_places=2)
+    crack_length         = models.DecimalField(null=True, default=-1,
+                                               max_digits=8, decimal_places=2)
 
-    scale               = models.DecimalField(null=True, default=1,
-                                              max_digits=8, decimal_places=2)
+    scale                = models.DecimalField(null=True, default=1,
+                                               max_digits=8, decimal_places=2)
 
     datetime_taken          = models.DateTimeField(null=True)
     datetime_uploaded       = models.DateTimeField(null=True)

@@ -1,4 +1,5 @@
 import datetime
+import json
 
 import math
 import pandas as pd
@@ -15,7 +16,7 @@ from google.cloud import storage
 
 # form to create , edit and delete a database object
 from django.views.generic.edit import CreateView, UpdateView, DeleteView
-from django.http import HttpResponseForbidden
+from django.http import HttpResponseForbidden, JsonResponse
 
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib import messages
@@ -296,13 +297,29 @@ class RecordComparison1View(generic.DetailView):
 
     # get template name depending on which comparison option is chosen:
     def get_template_names(self):
-        if self.kwargs["comparison"] == "comparison1":
-            return ['mcd/detailed_record_comparison1.html']
-        elif self.kwargs["comparison"] == "comparison2":
-            return ['mcd/detailed_record_comparison2.html']
-        else:
-            return ['mcd/detailed_record_comparison1.html']
+        display_image_1 = MCD_Photo_Analysis.objects.get(pk=self.kwargs['image_pk1'])
+        display_image_2 = MCD_Photo_Analysis.objects.get(pk=self.kwargs['image_pk2'])
 
+        # to avoid unexpected behaviours, ...
+        # ... check if the analysis of both images have been completed ...
+        # ... (since we will be comparing analysis outputs)
+
+        if display_image_1.analysis_complete and display_image_2.analysis_complete:
+            if self.kwargs["comparison"] == "comparison1":
+                return ['mcd/detailed_record_comparison1.html']
+            elif self.kwargs["comparison"] == "comparison2":
+                return ['mcd/detailed_record_comparison2.html']
+            else:
+                return ['mcd/detailed_record_comparison1.html']
+        else:
+            messages.warning(self.request,
+                             'Warning: Since the analysis of one of the selected images has not been completed,'
+                             ' we cannot compare the images. Please try comparing images where both images'
+                             ' have the analysis completed.',
+                             extra_tags='danger')
+            return ['mcd/detailed_record.html'] #, display_image_1.record_id.pk, display_image_1.pk]
+
+        # GO BACK
 
     # current_object
     # def __init__(self, **kwargs):
@@ -315,12 +332,9 @@ class RecordComparison1View(generic.DetailView):
     def get_context_data(self, **kwargs):
         # get current object primary key (id):
         current_record = self.kwargs['pk']
-        # filter out the objects that have been uploaded by the current user:
+        # filter out the images that belong to the current reco:
         image_ids_in_record = MCD_Photo_Analysis.objects.filter(record_id=current_record) \
             .values_list('record_id', flat=True).first()
-        # return only the objects that match the current user logged in:
-        # return MCD_Photo_Analysis.objects.filter(project_id=images_in_object)
-
         images_in_record = MCD_Photo_Analysis.objects.filter(record_id=image_ids_in_record)
 
         biggest_crack_length_list = []
@@ -340,7 +354,6 @@ class RecordComparison1View(generic.DetailView):
         display_image_2 = MCD_Photo_Analysis.objects.get(pk=self.kwargs['image_pk2'])
 
 
-
         def list_literal_eval(x):
             import ast
             return ast.literal_eval(x)
@@ -352,7 +365,7 @@ class RecordComparison1View(generic.DetailView):
         # get biggest crack length:
         try:
             print(">>> Reading detailed crack information from", display_image_1.crack_labels_csv)
-            relative_csv_path = get_cloud_relative_path_from_folder("media", display_image.crack_labels_csv.url)
+            relative_csv_path = get_cloud_relative_path_from_folder("media", display_image_1.crack_labels_csv.url)
             crack_labels, crack_locations, crack_lengths = get_crack_info_from_cloud_csv(relative_csv_path)
 
             # crack_labels_csv = pd.read_csv(display_image_1.crack_labels_csv)
@@ -545,7 +558,7 @@ class EnqueuePhotoAnalysis(threading.Thread):
     ... enqueue the task and submit to the F_Use_Model.py to run it
     """
     def __init__(self, db_pk, title, user_id, input_url, output_url, completed,
-                 user, project_id, record_id, analysis_id):
+                 user, project_id, record_id, analysis_id, status_json):
         self.db_pk       = db_pk
         self.title       = title
         self.user_id     = user_id
@@ -558,6 +571,7 @@ class EnqueuePhotoAnalysis(threading.Thread):
         self.project_id  = project_id
         self.record_id   = record_id
         self.analysis_id = analysis_id
+        self.status_json = status_json
 
         threading.Thread.__init__(self)
 
@@ -572,7 +586,8 @@ class EnqueuePhotoAnalysis(threading.Thread):
         crack_len_url,\
         crack_labels_url = analyse_photo(self.input_url.url, self.title,
                                          self.user, self.project_id,
-                                         self.record_id, self.analysis_id)
+                                         self.record_id, self.analysis_id,
+                                         self.status_json.url)
 
         print("crack_len_url", crack_len_url)
         print("photo analysed, posting to db index:", self.db_pk)
@@ -606,8 +621,16 @@ class EnqueuePhotoAnalysis(threading.Thread):
             sizes.iloc[:, 0] = sizes.iloc[:, 0].str.lstrip()
             sizes.dropna(inplace=True)  # removes empty lines
 
+        # if the algorithm did not find any cracks ...
+        # ... then it will be nan and cause this exception:
+        # django.db.utils.OperationalError
+        # ... therefore, we set crack length to 0.0
+        if math.isnan(t.crack_length):
+            t.crack_length = 0.0
+
         print(">  >  > 541 dataframe: ", list(sizes))
         print(">  >  > 542 dataframe: ", sizes)
+
 
         # after the photo has been analysed ...
         t.output_photo       = output_photo_url  # change field
@@ -620,7 +643,22 @@ class EnqueuePhotoAnalysis(threading.Thread):
 
         print("overlay_photo url:", t.overlay_photo)
 
-        t.save() # this will update only
+        print("t_crack_len:", t.crack_length)
+
+        try:
+            t.save() # this will update only
+        except Exception as e:  # work on python 3.x
+            print("[INFO] Posting to database failed, removing files")
+            print("[DEBUG] Info for post failure:")
+            print(e)
+            # if for any reason post to database fails ...
+            # ... delete the generated files from database
+            delete_file_from_cloud_media(output_photo_url)
+            delete_file_from_cloud_media(overlay_photo_url)
+            delete_file_from_cloud_media(crack_len_url)
+            delete_file_from_cloud_media(crack_labels_url)
+            delete_file_from_cloud_media(t.analysis_status_json)
+            print("[INFO] File deletion complete")
 
 def bytes_to_img(bytes):
     import numpy as np
@@ -665,7 +703,7 @@ def resize_img(img_in_bytes_to_resize):
 
 # =============================== Filler Views ================================== #
 # --------------------------- MCD_Photo_Analysis -------------------------------- #
-def upload_file_to_cloud(file_to_upload, filename, resize=False):
+def upload_file_to_cloud(file_to_upload, filename, resize=False, set_content_type=False):
 
     if resize:
         file_to_upload = resize_img(file_to_upload.read())
@@ -680,17 +718,24 @@ def upload_file_to_cloud(file_to_upload, filename, resize=False):
     # Create a new blob and upload the file's content.
     blob = bucket.blob(conf_settings.MEDIA_DIR_NAME + filename)
 
-    # file_to_upload = form.instance.input_photo
-    if resize:
-        blob.upload_from_string(
-            file_to_upload,
-            # content_type=uploaded_file.content_type
-        )
+    if set_content_type != 'application/json':
+        # file_to_upload = form.instance.input_photo
+        if resize:
+            blob.upload_from_string(
+                file_to_upload,
+                # content_type=uploaded_file.content_type
+            )
+        else:
+            blob.upload_from_string(
+                file_to_upload.read(),
+                # content_type=uploaded_file.content_type
+            )
     else:
         blob.upload_from_string(
-            file_to_upload.read(),
-            # content_type=uploaded_file.content_type
+            file_to_upload,
+            content_type=set_content_type
         )
+
 
     # The public URL can be used to directly access the uploaded file via HTTP.
     print("blob path:", blob.path)
@@ -719,8 +764,11 @@ def delete_file_from_cloud_media(filename):
 def make_cloud_filename(username, project_id, record_id, analysis_id):
     return hash256sha(username+'/'+str(project_id)+'/'+str(record_id)+'/'+str(analysis_id))
 
+def make_cloud_filename_json(username, project_id, record_id, analysis_id, csv_title):
+    return hash256sha(username+'/'+str(project_id)+'/'+str(record_id)+'/'+str(analysis_id)+'/'+csv_title)
 
-class PhotoAnalysisCreate(CreateView):
+
+class PhotoAnalysisCreate(UserPassesTestMixin, CreateView):
     # database model we will allow the user to edit/fill-in
     model = MCD_Photo_Analysis
     template_name = 'mcd/mcd_photo_analysis_form.html'
@@ -729,12 +777,81 @@ class PhotoAnalysisCreate(CreateView):
 
     form_class = MCD_Photo_AnalysisFORM
 
+    def test_func(self):
+
+
+        if 'project_id' not in self.kwargs and 'record_id' not in self.kwargs:
+            return True
+
+        print("running tests on: ", self.kwargs['project_id'], self.kwargs['record_id'])
+
+        import mcd
+        try:
+            # not allow the user who has not uploaded it to access the data
+            requested_project = MCD_Project.objects.get(pk=self.kwargs['project_id'])
+        except mcd.models.MCD_Project.DoesNotExist:
+            return False
+
+        try:
+            requested_record  = MCD_Record.objects.get(pk=self.kwargs['record_id'])
+        except mcd.models.MCD_Record.DoesNotExist:
+            return False
+
+        if not requested_project.uploaded_by_user_id.pk == self.request.user.pk:
+            # return HttpResponseForbidden("Unauthorised Access")
+            return False
+
+        if not requested_record.uploaded_by_user_id.pk == self.request.user.pk:
+            # return HttpResponseForbidden("Unauthorised Access")
+            return False
+
+        if requested_record.project_id.pk != requested_project.pk:
+            return False
+
+        else:
+            return True
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        # pk = self.kwargs.get("pk")
+        kwargs.update({'current_user': self.request.user})
+        return kwargs
+
+    # def get_context_data(self, **kwargs):
+    #
+    #     print("getting context data:")
+    #     print("kwargs:", self.kwargs)
+    #
+    #     # get current object primary key (id):
+    #     chosen_project_id = self.kwargs['project_id']
+    #     chosen_record_id  = self.kwargs['record_id']
+    #
+    #     data = super().get_context_data(**kwargs)
+    #
+    #     # data['current_id'] = int(current_object)
+    #     data['project_id'] = int(chosen_project_id)
+    #     data['record_id']  = int(chosen_record_id)
+    #     return data
+
     # if the request it 'get', just display the blank form ...
     # ... with it being adjusted for the user to only be able to choose from objects ...
     # ... the y have themselves uploaded:
-    def get(self, request):
+    def get(self, request, project_id = None, record_id=None):
+        # proj_id = self.kwargs.get("project_id")
         # by default - no data (context = None)
-        form = self.form_class(None)
+        # form = self.form_class(None)
+
+        js_flag = True
+        if project_id is not None and record_id is not None:
+            js_flag = False
+
+
+        print("GOT: project_id", project_id, "record_id", record_id)
+
+        form = self.form_class(current_user=self.request.user,
+                               project_id=project_id,
+                               record_id=record_id)
+                               # initial={'project_id': u'12'})
 
         # in the upload form, let the user choose only from projects/records they themselves have created:
         # (filter out records and projects by user id)
@@ -744,8 +861,8 @@ class PhotoAnalysisCreate(CreateView):
         records_per_user = MCD_Record.objects.filter(uploaded_by_user_id=request.user) \
             .values_list('uploaded_by_user_id', flat=True).first()
         # limit the form fields:
-        form.fields['project_id'].queryset=MCD_Project.objects.filter(uploaded_by_user_id=objects_per_user)
-        form.fields['record_id'].queryset=MCD_Record.objects.filter(uploaded_by_user_id=records_per_user)
+        # form.fields['project_id'].queryset=MCD_Project.objects.filter(uploaded_by_user_id=objects_per_user)
+        # form.fields['record_id'].queryset=MCD_Record.objects.filter(uploaded_by_user_id=records_per_user)
 
         if not form.fields['project_id'].queryset:
             form.fields['project_id'].disabled   = True
@@ -755,7 +872,10 @@ class PhotoAnalysisCreate(CreateView):
         # print(" queryset >>> ", form.fields['project_id'].queryset.exists())
 
         return render(request, self.template_name, {'form' : form,
-                                                    'object_exists' : form.fields['project_id'].queryset.exists()})
+                                                    'object_exists' : form.fields['project_id'].queryset.exists(),
+                                                    'project_id': project_id,
+                                                    'record_id' : record_id,
+                                                    'run_js' : js_flag})
 
     def form_valid(self, form):
         # get the uploaded photo name:
@@ -773,7 +893,7 @@ class PhotoAnalysisCreate(CreateView):
         ### --------- GOOGLE CLOUD STORAGE COMPATIBILITY ----------- ###
 
         # if no record was specified, create new record and assign to selected object:
-        if form.instance.record_id == None:
+        if form.instance.record_id == None or form.instance.record_id == "new":
             print("===> debugging worked - 'record_id' instance not set")
             mcd_record = MCD_Record(title=uploaded_filename+" Record",
                                     uploaded_by_user_id=self.request.user,
@@ -830,6 +950,24 @@ class PhotoAnalysisCreate(CreateView):
         upload_file_to_cloud(form.instance.input_photo, filename_on_cloud, resize=True)
         form.instance.input_photo = filename_on_cloud
 
+        # generate the status csv:
+        status_json_filename_on_cloud = make_cloud_filename_json(hide_username(self.request.user),
+                                                                 form.instance.project_id.pk,
+                                                                 mcd_record.pk, form.instance.pk,
+                                                                 "status_csv.json")
+
+        status_json = {'percentage_complete': 0.0,
+                       'status': 'initialized',
+                       'error' : 'none'}
+
+        json_object = json.dumps(status_json, indent=4)
+        upload_file_to_cloud(json_object, status_json_filename_on_cloud, set_content_type='application/json')
+
+        form.instance.analysis_status_json = status_json_filename_on_cloud
+        print("[INFO] Uploaded status JSON to Cloud with filename: ", form.instance.analysis_status_json)
+
+
+
         # clear temporarily saved files in App Engine /tmp/
         clear_tmp_dir()
 
@@ -862,7 +1000,7 @@ class PhotoAnalysisCreate(CreateView):
                              form.instance.output_photo,
                              form.instance.analysis_complete,
                              hide_username(self.request.user), form.instance.project_id.pk,
-                             mcd_record.pk, form.instance.pk
+                             mcd_record.pk, form.instance.pk, form.instance.analysis_status_json
                              ).start()
 
         return super(PhotoAnalysisCreate, self).form_valid(form)
@@ -1224,7 +1362,7 @@ def delete_record(record_to_delete):
         .values_list('record_id', flat=True).first()
     associated_img_analysis = MCD_Photo_Analysis.objects.filter(record_id=image_ids_in_record)
 
-    print("Listing:", associated_img_analysis)
+    print("Listing:", len(associated_img_analysis), associated_img_analysis)
 
     for img_analysis in associated_img_analysis:
         print("deleting 'input_photo':", img_analysis.input_photo.name)
@@ -1241,6 +1379,9 @@ def delete_record(record_to_delete):
 
         print("deleting 'crack_labels_csv':", img_analysis.crack_labels_csv.name)
         delete_file_from_cloud_media(img_analysis.crack_labels_csv.name)
+
+        print("deleting 'analysis_status_json':", img_analysis.analysis_status_json.name)
+        delete_file_from_cloud_media(img_analysis.analysis_status_json.name)
 
         print("------------------")
 
@@ -1302,9 +1443,12 @@ class PhotoAnalysisUpdate(LoginRequiredMixin, UpdateView):
     # fields = ['input_photo', 'project_id', 'record_id', 'scale']
     form_class = MCD_Photo_AnalysisFORM
 
-    # def form_valid(self, form):
-    #     print("form filled in", form.instance.reanalyse)
-    #     return super(PhotoAnalysisUpdate, self).form_valid(form)
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        # pk = self.kwargs.get("pk")
+        kwargs.update({'current_user': self.request.user})
+        return kwargs
+
 
     def form_valid(self, form):
 
@@ -1314,16 +1458,110 @@ class PhotoAnalysisUpdate(LoginRequiredMixin, UpdateView):
         current_img = MCD_Photo_Analysis.objects.get(pk=pk)
         self.previous_name = current_img.title
 
-        msg_change = 'Successfully changed details of Image "'+self.previous_name+'"'
-        if self.previous_name != new_title :
-            msg_change += ' (new title "'+new_title+'")'
+        previous_record  = current_img.record_id
+        previous_project = current_img.project_id
 
-        form.save()
+        new_project = MCD_Project.objects.get(pk=form.instance.project_id.pk)
+        try:
+            new_record  = MCD_Record.objects.get(pk=form.instance.record_id.pk)
+        except:
+            # the new record might not exist yet, ...
+            # ...we deal with this case in:
+            # ... if form.instance.record_id == None or form.instance.record_id == "new":
+            pass
+
+        # in case the user chooses to create a new record automatically:
+        # get the file name uploaded to upload as the title
+        # (remove the extension - split by '.'):
+        if form.instance.title and form.instance.title != "Untitled":
+            uploaded_filename = form.instance.title
+        else:
+            uploaded_filename = str(form.instance.input_photo).rsplit('.', 1)[0]
+
+        # if no record was specified, create new record and assign to selected object:
+        if form.instance.record_id == None or form.instance.record_id == "new":
+            print("===> debugging worked - 'record_id' instance not set")
+            new_record = MCD_Record(title=uploaded_filename+" Record",
+                                    uploaded_by_user_id=self.request.user,
+                                    project_id=form.instance.project_id)
+
+            # compute how many records are uploaded in total in the object:
+            # (NOTE - +1 added since the new record is not yet saved to database ...
+            #  .. so the counter would not count the image just uploaded)
+            new_record.num_images = new_record.mcd_photo_analysis_set.count()+1
+
+            new_record.save()
+            print("------------> saved mcd record:", new_record)
+            print("------------> previ mcd record:", previous_record)
+
+            form.instance.record_id = new_record
+
+        print("current img pre-saving:")
+        print("current_img.title:", current_img.title)
+        print("current_img.project_id:", current_img.project_id)
+        print("current_img.record_id:", current_img.record_id)
+        current_img = form.save()
+        print("current img post-saving:")
+        print("current_img.title:", current_img.title)
+        print("current_img.project_id:", current_img.project_id)
+        print("current_img.record_id:", current_img.record_id)
+
+
+        # recompute the statistics of ...
+        # ... projects (previous project)
+        # ... and records (previous record):
+
+        # remove -1 image count from previous project/record
+        print("\nupdating old record:", previous_record.title, previous_record.num_images)
+        previous_record.num_images  = previous_record.mcd_photo_analysis_set.count() #-1
+        previous_record.save()
+        print("updated old record:", previous_record.title, previous_record.num_images)
+
+        # NOTE - if the project has not changed, -1 + 1 = 0 and the original count remains.
+
+        # if the old record now has 0 photos, delete the record:
+        if previous_record.num_images == 0:
+            messages.warning(self.request,
+                             'NOTE: Since Image "' + new_title + '" was the last image in Record "' +
+                             previous_record.title + '", it was deleted.',
+                             extra_tags='warning')
+            # delete the previous record, since it is now empty:
+            # previous_record.delete()
+            delete_record(previous_record)
+            # update counts of precious project, that previous record was a part of:
+            previous_project.num_records = new_project.mcd_record_set.count()
+            previous_project.num_images = new_project.mcd_photo_analysis_set.count()
+            previous_project.save()
+
+
+        print("\nupdating old project:", previous_project.title, previous_project.num_images, previous_project.num_records)
+        previous_project.num_images = previous_project.mcd_photo_analysis_set.count() #-1
+        previous_project.num_records = previous_project.mcd_record_set.count() #-1
+        previous_project.save()
+        print("updated old project:", previous_project.title, previous_project.num_images, previous_project.num_records)
+
+        # add +1 image count from previous project/record
+        print("\nupdating new record:", new_record.title, new_record.num_images)
+        new_record.num_images = new_record.mcd_photo_analysis_set.count() #+1
+        new_record.save()
+        print("updated new record:", new_record.title, new_record.num_images)
+
+        print("\nupdating new project:", new_project.title, new_project.num_images, new_project.num_records)
+        new_project.num_images = new_project.mcd_photo_analysis_set.count() #+1
+        new_project.num_records = new_project.mcd_record_set.count() #+1
+        new_project.save()
+        print("updated new project:", new_project.title, new_project.num_images, previous_project.num_records)
+
+
+        msg_change = 'Successfully changed details of Image "' + self.previous_name + '"'
+        #  if the title was changed, then add this to the change message:
+        if self.previous_name != new_title:
+            msg_change += ' (new title "' + new_title + '")'
 
         messages.success(self.request,
                          msg_change,
                          extra_tags='success')
-        return redirect('mcd:detailed_record_image_pk', current_img.record_id.pk, pk)
+        return redirect('mcd:detailed_record_image_pk', new_record.pk, pk)
 
     def form_invalid(self, form):
         pk = self.kwargs.get("pk")
@@ -1343,29 +1581,6 @@ class PhotoAnalysisUpdate(LoginRequiredMixin, UpdateView):
         data['photo_analysis'] = MCD_Photo_Analysis.objects.get(pk=int(current_object))
         return data
 
-    # def post(self, request, pk):
-    #     print("recv POST", pk)
-    #     # form = self.form_class(None)
-    #
-    #     current_image = MCD_Photo_Analysis.objects.get(pk=pk)
-    #
-    #     print("current form:", current_image.title)
-    #     print(current_image.uploaded_by_user_id)
-    #     print(current_image.input_photo)
-    #     print(current_image.output_photo)
-    #     print(current_image.analysis_complete)
-    #
-    #     EnqueuePhotoAnalysis(pk,
-    #                          current_image.title,
-    #                          current_image.uploaded_by_user_id,
-    #                          current_image.input_photo,
-    #                          current_image.output_photo,
-    #                          current_image.analysis_complete,
-    #                          hide_username(self.request.user), current_image.project_id.pk,
-    #                          current_image.record_id.pk, current_image.pk
-    #                          ).start()
-    #
-    #     return redirect('mcd:detailed_record_image_pk', current_image.record_id.pk, pk)
 
 class PhotoAnalysisReanalyse(View):
 
@@ -1386,6 +1601,20 @@ class PhotoAnalysisReanalyse(View):
         print(current_image.input_photo)
         print(current_image.output_photo)
         print(current_image.analysis_complete)
+        print(current_image.analysis_status_json)
+
+        # generate the status csv:
+        status_json_filename_on_cloud = current_image.analysis_status_json.url.split("media/")[1]
+
+        status_json = {'percentage_complete': 0.0,
+                       'status': 'initialized',
+                       'error' : 'none'}
+
+        json_object = json.dumps(status_json, indent=4)
+        upload_file_to_cloud(json_object, status_json_filename_on_cloud, set_content_type='application/json')
+
+        # current_image.analysis_status_json = status_json_filename_on_cloud
+        print("[INFO] Re-initialised status JSON to Cloud with filename: ", current_image.analysis_status_json)
 
         EnqueuePhotoAnalysis(pk,
                              current_image.title,
@@ -1394,7 +1623,7 @@ class PhotoAnalysisReanalyse(View):
                              current_image.output_photo,
                              current_image.analysis_complete,
                              hide_username(self.request.user), current_image.project_id.pk,
-                             current_image.record_id.pk, current_image.pk
+                             current_image.record_id.pk, current_image.pk, current_image.analysis_status_json
                              ).start()
 
         # return redirect('mcd:index')
@@ -1433,6 +1662,9 @@ class PhotoAnalysisDelete(DeleteView):
         print("deleting 'crack_labels_csv':", image_to_delete.crack_labels_csv.name)
         delete_file_from_cloud_media(image_to_delete.crack_labels_csv.name)
 
+        print("deleting 'analysis_status_json':", image_to_delete.analysis_status_json.name)
+        delete_file_from_cloud_media(image_to_delete.analysis_status_json.name)
+
         # delete the record itself:
         image_to_delete.delete()
 
@@ -1448,7 +1680,8 @@ class PhotoAnalysisDelete(DeleteView):
 
         if image_parent_record.num_images == 0:
             # image_parent_record = MCD_Record.objects.get(pk=image_parent_record.pk)
-            image_parent_record.delete()
+            # image_parent_record.delete()
+            delete_record(image_parent_record)
             image_parent_project.num_records = image_parent_project.mcd_record_set.count()
             image_parent_project.num_images = image_parent_project.mcd_photo_analysis_set.count()
             image_parent_project.save()
@@ -1815,3 +2048,40 @@ class API_ListByUser_MCD_Photo_Analysis(APIView):
     def post(self):
         pass
 
+
+# AJAX
+def get_user_records(request):
+    # user_id = request.GET.get('user_id')
+    project_id = request.GET.get('project_id')
+
+    print("getting records of project: ", project_id )
+    
+    # current_user = User.objects.get(pk=user_id)
+    current_project = MCD_Project.objects.get(pk=project_id)
+    
+    # first filter records that user has uploaded:
+    # mcd_records = MCD_Record.objects.filter(uploaded_by_user_id=current_user).all()
+
+    # then add filter that only match the project as well:
+    mcd_records = MCD_Record.objects.filter(project_id=current_project.pk).all()
+    print("found these records:")
+    print(mcd_records)
+
+    # return render(request, 'persons/city_dropdown_list_options.html', {'cities': cities})
+    return JsonResponse(list(mcd_records.values('id', 'title')), safe=False)
+
+
+def get_filtered_projects(request):
+    # user_id = request.GET.get('user_id')
+    search_query = request.GET.get('search_query')
+
+    print("searching projects that match search string: ", search_query)
+
+    # first filter records that user has uploaded:
+    mcd_projects = MCD_Project.objects.filter(uploaded_by_user_id=request.user).all()
+
+    # then add filter that only match the project as well:
+    mcd_projects = mcd_projects.filter(title__icontains=search_query).all()
+
+    # return render(request, 'persons/city_dropdown_list_options.html', {'cities': cities})
+    return JsonResponse(list(mcd_projects .values('id', 'num_records', 'title')), safe=False)

@@ -24,6 +24,10 @@ import matplotlib.pyplot as plt
 from tempfile import TemporaryFile
 import mimetypes
 
+def get_running_status(dist, mode):
+    return {'percentage_complete': float((dist-200)/1200),
+            'status': mode,
+            'error' : 'none'}
 
 def save_memory_to_image_in_cloud(data, location, media_dir=False, colour=False):
 
@@ -117,6 +121,45 @@ def save_to_cloud(file_to_upload, filename, media_dir=False):
         # content_type=uploaded_file.content_type
     )
 
+def save_json_to_cloud(status_dictionary, status_json_filename_on_cloud):
+
+    json_object = json.dumps(status_dictionary, indent=4)
+
+    # Create a Cloud Storage client.
+    gcs = storage.Client()
+
+    # Get the bucket that the file will be uploaded to.
+    bucket = gcs.get_bucket(conf_settings.GOOGLE_CLOUD_STORAGE_BUCKET)
+
+    # Create a new blob and upload the file's content.
+    # media/filename
+    blob = bucket.blob(conf_settings.MEDIA_DIR_NAME + status_json_filename_on_cloud)
+
+    blob.upload_from_string(
+        json_object,
+        content_type='application/json'
+    )
+
+    # The public URL can be used to directly access the uploaded file via HTTP.
+    print("blob path:", blob.path)
+    print("blob purl:", blob.public_url)
+
+    # upload_file_to_cloud(json_object, status_json_filename_on_cloud, set_content_type='application/json')
+
+def read_json_from_cloud(filename):
+    from google.cloud import storage
+
+    print(">>> Reading JSON file ", filename, " Blob from bucket ...")
+
+    storage_client = storage.Client()
+    bucket = storage_client.get_bucket('mcd_file_storage')
+
+    blob = bucket.blob(filename)
+
+    json_as_string = blob.download_as_bytes()
+    print("<> <> <> img as string: ", json_as_string)
+
+    return json.loads(json_as_string)
 
 def read_file(filename, readFlag=cv2.IMREAD_COLOR):
     import io
@@ -157,7 +200,7 @@ def url_to_image(url, readFlag=cv2.IMREAD_COLOR):
 
 
 def analyse_photo(Image_Path, Image_Name,
-                  user, project_id, record_id, analysis_id):
+                  user, project_id, record_id, analysis_id, status_json):
     #=============================================================================
     #                PROGRAM: USE CNN MODEL (SEMANTIC SEGMENTATION)
     #=============================================================================
@@ -425,6 +468,15 @@ def analyse_photo(Image_Path, Image_Name,
 
     print(">>> Made it to 401")
 
+    json_pure_filename = status_json.split("media/", 1)[1]
+    print("[INFO] Reading Status JSON:", "media/"+json_pure_filename)
+    JSON_status = read_json_from_cloud("media/"+json_pure_filename )
+    print("[GOT] JSON Object:")
+    print(JSON_status)
+
+    status_dict = get_running_status(473, "packages_initialised")
+    save_json_to_cloud(status_dict, json_pure_filename)
+
 
     # import the necessary packages
     #import tensorflow as tf
@@ -458,6 +510,8 @@ def analyse_photo(Image_Path, Image_Name,
     print("")
     print("[INFO] Mini Functions Started")
     start = time.time()
+    status_dict = get_running_status(513, "mini_functions_startedd")
+    save_json_to_cloud(status_dict, json_pure_filename)
 
     #-----------------------------------------------------------------------------
 
@@ -614,6 +668,9 @@ def analyse_photo(Image_Path, Image_Name,
     end = time.time()
     print("[INFO] Reading Paths Finished - T: " \
           + str(round(end-start,3)) + "s -> " + str(round(end-start0,3)) + "s")
+
+    status_dict = get_running_status(672, "reading_paths_finished")
+    save_json_to_cloud(status_dict, json_pure_filename)
 
     #=============================================================================
     #                    MODEL DEFINITION/PREDICTIONS
@@ -795,6 +852,7 @@ def analyse_photo(Image_Path, Image_Name,
     Source = read_file("media/"+file_name)
     List_Images = [["Original Image",np.copy(Source)]]
 
+    # put JSON here?
 
     Image = np.copy(Source)[:,:,:3]
     # print("image right now: ", Image, " its shape: ", Image.shape)
@@ -924,6 +982,9 @@ def analyse_photo(Image_Path, Image_Name,
     print("")
     print("[INFO] Post-Processing Started")
     start = time.time()
+
+    status_dict = get_running_status(985, "post_processing_started")
+    save_json_to_cloud(status_dict, json_pure_filename)
 
     #-----------------------------------------------------------------------------
     # Apply dilation/erotion/dilation to the mask to remove small artifacts
@@ -1178,6 +1239,9 @@ def analyse_photo(Image_Path, Image_Name,
     print("[INFO] Data Saving Started")
     start = time.time()
 
+    status_dict = get_running_status(1242, "data_saving_started")
+    save_json_to_cloud(status_dict, json_pure_filename)
+
     #-----------------------------------------------------------------------------
 
     # make a dictionary to refer to image paths later:
@@ -1284,6 +1348,15 @@ def analyse_photo(Image_Path, Image_Name,
             # except IndexError:
             #     url_dict["crack_len_csv"] = crack_length_path.split('\\', 1)[1]
 
+
+
+            if Df_Sizes.empty:
+                Df_Sizes = Df_Sizes.append({'Label': '1',
+                                            'Loc (x,y)': "[0, 0]",
+                                            'Count (pxls)': 0,
+                                            'Length (pxls)': 0},
+                                            ignore_index=True)
+
             # don't save files locally for cloud services:
             # Df_Sizes.to_csv(crack_length_path, index=False)
 
@@ -1318,6 +1391,9 @@ def analyse_photo(Image_Path, Image_Name,
     #        Cloud_Base_Dir+hash256sha(url_dict["Binarised (t=" + str(Bin_Threshold) + ")"]), \
     #        Cloud_Base_Dir+hash256sha(url_dict["crack_len_csv"]), \
     #        Cloud_Base_Dir+hash256sha(url_dict["Final Watershed"])
+
+    status_dict = get_running_status(1400, "completed_returning")
+    save_json_to_cloud(status_dict, json_pure_filename)
 
     return url_dict["Overlay"], \
            url_dict["Binarised (t=" + str(Bin_Threshold) + ")"], \

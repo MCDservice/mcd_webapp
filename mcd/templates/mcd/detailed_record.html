@@ -145,7 +145,7 @@
 
             <ul class="list-unstyled components">
                 <li class="active">
-                    <a href="../add-scale-3/{{ current_id }}/1/1/g/?11,11"
+                    <a href="/mcd/add-scale-3/{{ display_image.pk }}/1/1/g/?11,11"
                        class="btn btn-success margin-top-15px margin-bottom-15px dropdown-toggle text-sidebar back-green hideable">
                         <span class="glyphicon glyphicon-resize-horizontal" aria-hidden="true"></span>&nbsp
                         Update Scale Interactively
@@ -154,7 +154,7 @@
                        data-toggle="collapse"
                        aria-expanded="false"
                        class="btn btn-success margin-top-15px margin-bottom-15px dropdown-toggle text-sidebar back-green">
-                        <i class="fas fa-home"></i>
+                        <span class="glyphicon glyphicon-random hideable" aria-hidden="true"></span>&nbsp
                         Compare
                     </a>
                     <ul class="collapse list-unstyled" id="homeSubmenu">
@@ -170,6 +170,11 @@
                             </a>
                         </li>
                     </ul>
+                    <a href="{% url 'mcd:upload_to_project_record' record.project_id.pk record.pk %}"
+                       class="btn btn-success margin-top-15px margin-bottom-15px dropdown-toggle text-sidebar back-green hideable">
+                        <span class="glyphicon glyphicon-plus" aria-hidden="true"></span>&nbsp
+                        Add New Image to This Record
+                    </a>
                 </li>
                {% for photo in images_of_record %}
                     <li class="list-group-sidebar">
@@ -226,7 +231,7 @@
         </nav>
 
         <!-- Page Content  -->
-        <div id="content">
+        <div class="record-container">
             {% if messages %}
                 {% for message in messages %}
                     <div {% if message.tags %} class="alert alert-{{ message.extra_tags}}"{% endif %}>
@@ -241,12 +246,16 @@
                     Back to Project "{{ record.project_id.title }}"
                 </a>
                 <div class="container-fluid div-flex">
-                    <button type="button" id="sidebarCollapse" class="btn btn-toggle-menu margin-right-30px">
+                    <button type="button" id="sidebarCollapse" class="btn btn-toggle-menu margin-right-15px">
                         <span class="sr-only">Toggle navigation</span>
                         <span class="glyphicon glyphicon-align-justify" aria-hidden="true"></span>&nbsp
                     </button>
-                    <h1 class="text-abel">
-                        Record #{{ record.id }} | {{ record.title }}
+                    <h2 class="text-abel">
+                        <b>
+                            Record #{{ record.id }} |
+                            {{ record.title|slice:"20" }}{% if record.title|length > 20 %}...{% endif %}
+{#                            {{ record.title|truncatechars:9 }}#}
+                        </b>
                         &nbsp
                         <a class="text-normal" href="{% url 'mcd:photo_analysis_detailed' display_image.id %}">
                             <span class="glyphicon glyphicon-eye-open" aria-hidden="true"></span>&nbsp
@@ -257,7 +266,7 @@
                         <p class="label-grey-outline-small margin-top-5px">
                             Project: {{ record.project_id.title }} | Image Analysis ID: {{ display_image.pk }}
                         </p>
-                    </h1>
+                    </h2>
                 </div>
             </nav>
 
@@ -265,121 +274,172 @@
                 {% block comparison_content %}
                 {% endblock %}
             {% else %}
+                <p id="status_json" status_json_url="{{ display_image.analysis_status_json.url }}" ></p>
+                <h3><b>OUTPUT | </b> Classified Masonry Crack Overlay:</h3>
+                <div class="row">
+                    {% if not display_image.overlay_photo %}
+                        <div class="col-sm-12 image-container">
+                            <div class="progress-bar-label">
+                                Please wait, the Image is being analysed ...
+                            </div>
+                            <div id="id_progress_bar" class="alert-warning progress-bar">
 
-                <h2><b>OUTPUT | </b> Classified Masonry Crack Overlay:</h2>
-                <div class="img-container">
-                    {% if display_image.overlay_photo %}
-                        <img class="img-scaling" width="1280px" height="720px" src="{{ display_image.overlay_photo.url }}">
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="col-sm-12 image-container">
+                            {% if display_image.overlay_photo %}
+                                <img class="image-scaling" src={{ display_image.overlay_photo.url }}>
+                            {% else %}
+                                <div class="alert-warning">
+                                    Please wait, the Image is being analysed ...
+                                </div>
+                            {% endif %}
+                        </div>
                     {% endif %}
                 </div>
-
-                <div class="floating-wrapper">
-                    <div>
-                        <h2>Input Image
+                <div class="row floating-wrapper align-baseline">
+                    <div class="col-sm-6 padding-1px-lr">
+                        <h3>Input Image
                             <a class="label-grey-small text-normal" href="">
-                                {{ display_image.title }}
+                                                {{ display_image.title }}
                             </a>
-                        </h2>
-
-                        <div class="img-container">
-                            <img class="img-scaling" width="640px" height="360px" src="{{ display_image.input_photo.url }}">
+                        </h3>
+                        <div class="image-container">
+                                <img class="image-scaling" src={{ display_image.input_photo.url }}>
                         </div>
                     </div>
-                    <div>
-                        <h2>Output Image</h2>
-                        {% if display_image.output_photo %}
-                            <div class="img-container">
-                                <img class="img-scaling" width="640px" height="360px" src="{{ display_image.output_photo.url }}">
+                    <div class="col-sm-6 padding-1px-lr">
+                        <h3>Output Image</h3>
+                            <div class="image-container">
+                                {% if display_image.output_photo %}
+                                    <img class="image-scaling" src="{{ display_image.output_photo.url }}">
+                                {% else %}
+                                    <div class="alert-warning">
+                                        Please wait, the Image is being analysed ...
+                                    </div>
+                                {% endif %}
                             </div>
-                        {% endif %}
                     </div>
                 </div>
 
                 <div>
                     <button onclick="slide_div_toggle('sliding-divider')" class="btn btn-toggle-menu">Detailed Crack Information</button>
                     <div id="sliding-divider" class="sliding-div slide-off">
-                        <ul class="list-group-sequence ">
-                            {% for sorted_id in sorted_ids %}
-                                <li class="list-group-item">
-                                    <div class="list-item-container">
-                                        <div class="list-item-first label-grey">
-                                            #{{ crack_labels|index:sorted_id }}
+                            <ul class="list-group-sequence ">
+                                {% for sorted_id in sorted_ids %}
+                                    <li class="list-group-item">
+                                        <div class="list-item-container">
+                                            <div class="list-item-first label-grey">
+                                                #{{ crack_labels|index:sorted_id }}
+                                            </div>
                                         </div>
-                                    </div>
-                                    <p class="detailed_crack_info list-item-sequence">
-                                        {{ crack_lengths|index:sorted_id }}
-                                    </p>
-                                    <p class="detailed_crack_unit list-item-sequence">
-                                        {% if display_cm|index:sorted_id == 1 %}
-                                            cm
-                                        {% else %}
-                                            px
-                                        {% endif %}
-                                    </p>
+                                        <p class="detailed_crack_info list-item-sequence">
+                                            {{ crack_lengths|index:sorted_id }}
+                                        </p>
+                                        <p class="detailed_crack_unit list-item-sequence">
+                                            {% if display_cm|index:sorted_id == 1 %}
+                                                cm
+                                            {% else %}
+                                                px
+                                            {% endif %}
+                                        </p>
 
-                            {% endfor %}
-                        </ul>
+                                {% endfor %}
+                            </ul>
                     </div>
                 </div>
 
                 {% if display_image.crack_labels_photo %}
                     <script type="text/javascript" src="https://davidlynch.org/projects/maphilight/jquery.maphilight.js"></script>
-                    <div class="img-container">
-                        <div class="relative-wrapper">
 
-                            <img id="ImageMap1"
-                                 usemap="#ImageMapmapAreas"
-                                 class="map mapHiLight img-scaling"
-                                 width="1280px" height="720px"
-                                 src="{{ display_image.crack_labels_photo.url }}"
-                                 onload="resize_marker_location()">
-        {#                    <map id="simple" name="simple">#}
-        {#                      <area alt="" title="" href="#Earth" coords="228,151,53" shape="circle" data-maphilight='{"strokeColor":"0000ff","strokeWidth":5,"fillColor":"00ff00","fillOpacity":0.6}'/>#}
-        {#                      <area alt="" title="" href="#Sun" coords="68,54,44" shape="circle" data-maphilight="{'strokeColor':'0000ff','strokeWidth':5,'fillColor':'00ff00','fillOpacity':0.6}"/>#}
-        {#                      <area shape="poly" coords="211,3,121,67,112,53,95,103,146,108,136,92,229,25" href="#" alt="arrow">#}
-        {#                      <area shape="poly" coords="78,83,70,100,52,104,64,115,61,133,78,124,94,133,91,116,104,102,87,101,79,88" href="#" alt="star">#}
-        {#                      <area shape="poly" coords="248,126,222,150,202,122,233,105,239,118,249,125,250,128" href="#" alt="a square">#}
-        {#                      <area shape="poly" coords="151,249,175,225,182,222,167,193,136,221,153,250" href="#" alt="another square">#}
-        {#                      <area shape="rect" coords="200,200,290,290" href="#" alt="Shadow for some">#}
-        {#                    </map>#}
+                    <div class="row">
+                        <div class="col-sm-12 image-container">
+                            <img class="image-scaling" id="ImageMap1"
+                                     usemap="#ImageMapmapAreas"
+                                     class="map mapHiLight img-scaling"
+                                     src="{{ display_image.crack_labels_photo.url }}"
+                                     onload="resize_marker_location()">
 
-        {#                    <img id="ImageMap1" src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/cb/Planets2013.svg/260px-Planets2013.svg.png" usemap="#ImageMapmapAreas" />#}
                             <map id="ImageMapmapAreas" class="map" name="ImageMapmapAreas">
-                                {% load index_templatetag %}
-                                {% for crack_loc in crack_locations %}
-                                    <div>
-                                        <p class="crack-label label-grey-outline" style='{"position": "absolute",
-                                                                      "left": "{{ crack_loc.0 }}",
-                                                                      "top": "{{ crack_loc.1 }}"}'>
-                                            #{{ crack_labels|index:forloop.counter0 }}
-    {#                                        {{ crack_lengths|index:forloop.counter0 }}#}
-    {#                                        {% if display_cm|index:forloop.counter0 == 1 %}#}
-    {#                                            cm#}
-    {#                                        {% else %}#}
-    {#                                            px#}
-    {#                                        {% endif %}#}
-                                        </p>
-                                        <area alt=""
-                                              title="x = {{ crack_loc.0 }} y = {{ crack_loc.1 }} | {{ crack_lengths|index:forloop.counter0 }}"
-                                              href="#Earth"
-                                              class="crack-marker"
-                                              coords="{{ crack_loc.0 }},{{ crack_loc.1 }},{{ crack_lengths|index:forloop.counter0 }}"
-                                              shape="circle"
-                                              data-text="TEST"
-                                              data-maphilight='{"strokeColor":"D60002",
-                                                                "strokeWidth":5,
-                                                                "fillColor":"00ff00",
-                                                                "fillOpacity":0.6}'/>
-                                    </div>
-                                {% endfor %}
-        {#                        <area alt="" title="" href="#Sun" coords="448,454,44" shape="circle" data-maphilight="{'strokeColor':'0000ff','strokeWidth':5,'fillColor':'00ff00','fillOpacity':0.6}"/>#}
+                                    {% load index_templatetag %}
+                                    {% for crack_loc in crack_locations %}
+                                        <div>
+                                            <p class="crack-label label-grey-outline" style='{"position": "absolute",
+                                                                          "left": "{{ crack_loc.0 }}",
+                                                                          "top": "{{ crack_loc.1 }}"}'>
+                                                #{{ crack_labels|index:forloop.counter0 }}
+        {#                                        {{ crack_lengths|index:forloop.counter0 }}#}
+        {#                                        {% if display_cm|index:forloop.counter0 == 1 %}#}
+        {#                                            cm#}
+        {#                                        {% else %}#}
+        {#                                            px#}
+        {#                                        {% endif %}#}
+                                            </p>
+                                            <area alt=""
+                                                  title="x = {{ crack_loc.0 }} y = {{ crack_loc.1 }} | {{ crack_lengths|index:forloop.counter0 }}"
+                                                  href="#Earth"
+                                                  class="crack-marker"
+                                                  coords="{{ crack_loc.0 }},{{ crack_loc.1 }},{{ crack_lengths|index:forloop.counter0 }}"
+                                                  shape="circle"
+                                                  data-text="TEST"
+                                                  data-maphilight='{"strokeColor":"D60002",
+                                                                    "strokeWidth":5,
+                                                                    "fillColor":"00ff00",
+                                                                    "fillOpacity":0.6}'/>
+                                        </div>
+                                    {% endfor %}
+            {#                        <area alt="" title="" href="#Sun" coords="448,454,44" shape="circle" data-maphilight="{'strokeColor':'0000ff','strokeWidth':5,'fillColor':'00ff00','fillOpacity':0.6}"/>#}
                             </map>
                         </div>
                     </div>
+
                 {%  endif %}
             {% endif %}
 
         </div>
     </div>
+
+
+<script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+<script>
+    {% if not display_image.analysis_complete %}
+    setInterval(function()
+    {
+        const url = $("#status_json").attr("status_json_url");  // get the url of the `load_cities` view
+
+        {#const project_id = $(this).val();  // get the selected country ID from the HTML input#}
+        {#const user_id = $(this).val();  // get the selected country ID from the HTML input#}
+        console.log("will be reading from: "+url);
+
+        $.ajax(
+            {   // initialize an AJAX request
+                url: url, // set the url of the request (= /persons/ajax/load-cities/ )
+                //data:
+                //{
+                //    'project_id': project_id       // add the country id to the GET parameters
+                //    {#'project_id': project_id       // add the country id to the GET parameters#}
+                //},
+                success: function (data)
+                {   // `data` is the return of the `load_cities` view function
+                    console.log(data);
+                    $('#id_progress_bar').css('width', (data.percentage_complete*100).toString()+'%');
+
+                    if(data.percentage_complete > 0.99)
+                    {
+                        setTimeout(
+                          function()
+                          {
+                            location.reload();
+                          }, 3000);
+                    }
+                },
+                cache: false
+         });
+
+    }, 3000);
+    {% endif %}
+
+</script>
 
 {% endblock %}

@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework', # for REST API
     'crispy_forms',
+    # 'django.contrib.postgres' # for better search - unaccented __unaccent__icontains
 ]
 
 CRISPY_TEMPLATE_PACK = 'bootstrap3'

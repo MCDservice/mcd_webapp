@@ -4,15 +4,25 @@
     MCD | Details
 {% endblock %}
 {% block body %}
-    <h1>Results for Analysis ID '{{ photo_analysis.id }}'</h1>
+    <h2>Results for Analysis ID '{{ photo_analysis.id }}'</h2>
 
     {% include 'mcd/navigation/photo_analysis_nav.html' %}
 
-    <h2>Input Image: </h2>
-    <img src="{{ photo_analysis.input_photo.url }}">
+    <div class="record-container">
+        <h3>Input Image: </h3>
+        <div class="row">
+            <div class="col-sm-12 image-container">
+                <img class="image-scaling" src={{ photo_analysis.input_photo.url }}>
+            </div>
+        </div>
 
-    <h2>Output Image:</h2>
-    {% if photo_analysis.output_photo %}
-        <img src="{{ photo_analysis.output_photo.url }}">
-    {% endif %}
+        <h3>Output Image:</h3>
+        <div class="row">
+            {% if photo_analysis.output_photo %}
+            <div class="col-sm-12 image-container">
+                <img class="image-scaling" src={{ photo_analysis.output_photo.url }}>
+            </div>
+            {% endif %}
+        </div>
+    </div>
 {% endblock %}

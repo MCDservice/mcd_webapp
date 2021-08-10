@@ -31,25 +31,27 @@
         }
     </script>
 
-    <div class="floating-wrapper">
-    <div>
-        <h2>
-            <b>COMPARING | </b>
-            Image {{ display_image.id }} ({{ display_image.datetime_uploaded }})
-            &
-            Image {{ display_image_2.id }} ({{ display_image_2.datetime_uploaded }})
-        </h2>
-        <button onclick="switchImg()" class="btn btn-toggle-menu">Switch Images </button>
-        <label for="image1">Choose Image 1:</label>
-        <select id="image1" name="image1" onchange="chooseImg1()" >
-            <option value="" selected>Pick the First Image</option>
-            {% for photo in images_of_record %}
-                <option value="{{ photo.id }}">
-                    #{{ photo.id }} | {{ photo.title }} - {{ photo.datetime_uploaded }}
-                </option>
-            {% endfor %}
-        </select>
-
+    <div class="input-group-addon">
+    <h4>
+        <div><b>COMPARING</b></div>
+        <div>Image {{ display_image.id }} ({{ display_image.datetime_uploaded }})</div>
+        &
+        <div>Image {{ display_image_2.id }} ({{ display_image_2.datetime_uploaded }})</div>
+    </h4>
+    </div>
+    <div class="row floating-wrapper align-baseline">
+        <div class="col-sm-6 padding-1px-lr">
+            <label for="image1">Choose Image 1:</label>
+            <select id="image1" name="image1" onchange="chooseImg1()" >
+                <option value="" selected>Pick the First Image</option>
+                {% for photo in images_of_record %}
+                    <option value="{{ photo.id }}">
+                        #{{ photo.id }} | {{ photo.title }} - {{ photo.datetime_uploaded }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-sm-6 padding-1px-lr">
         <label for="image2">Choose Image 2:</label>
         <select id="image2" name="image2" onchange="chooseImg2()">
             <option value="" selected>Pick the Second Image</option>
@@ -59,22 +61,22 @@
                 </option>
             {% endfor %}
         </select>
-
-        <div class="switch-img img-container">
-            {% if display_image.overlay_photo %}
-                <img class="img-scaling" width="1280px" height="720px"
+        </div>
+    </div>
+    <button onclick="switchImg()" class="btn btn-toggle-menu">Switch Images </button>
+    <div class="row">
+        <div class="switch-img col-sm-12 image-container">
+             {% if display_image.overlay_photo %}
+                <img class="image-scaling"
                      src="{{ display_image.overlay_photo.url }}">
             {% endif %}
         </div>
-
-        <div class="switch-img img-container display-false">
+        <div class="switch-img col-sm-12 image-container display-false">
             {% if display_image.overlay_photo %}
-                <img class="img-scaling" width="1280px" height="720px"
+                <img class="image-scaling"
                      src="{{ display_image_2.overlay_photo.url }}">
             {% endif %}
         </div>
-
     </div>
 
-</div>
 {% endblock %}

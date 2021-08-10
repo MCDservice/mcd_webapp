@@ -71,6 +71,16 @@ urlpatterns = [
     # [invoked by clicking ' + Upload Image for Analysis ']
     url(r'^upload/$', login_required(login_url="/mcd/login")
                       (views.PhotoAnalysisCreate.as_view()), name='upload'),
+
+    url(r'^upload/(?P<project_id>[0-9]+)/(?P<record_id>[0-9]+)$', login_required(login_url="/mcd/login")
+                      (views.PhotoAnalysisCreate.as_view()), name='upload_to_project_record'),
+
+    url(r'^get-user-records', login_required(login_url="mcd/login")
+                      (views.get_user_records), name='get_user_records'),
+
+    url(r'^get-filtered-projects', login_required(login_url="mcd/login")
+                      (views.get_filtered_projects), name='get_filtered_projects'),
+
     # mcd/project-add
     url(r'^project-add/$', login_required(login_url="/mcd/login")
                       (views.ObjectCreate.as_view()), name='project-add'),
