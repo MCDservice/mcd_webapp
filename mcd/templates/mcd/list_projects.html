@@ -23,13 +23,24 @@
             Back to Home Page
         </a>
 
-        <div class="input-group rounded floating-wrapper turn-off-flex-flow">
-            <input id="search_input" get_filtered_projects="{% url 'mcd:get_filtered_projects' %}" type="search" class="form-control rounded" placeholder="Search" aria-label="Search"
-            aria-describedby="search-addon" />
-            <button class="btn btn-success">
-                <span class="glyphicon glyphicon-search" id="search-addon"></span>
-            </button>
-        </div>
+{#        <div class="input-group rounded floating-wrapper turn-off-flex-flow">#}
+{#            <input id="search_input" get_filtered_projects="{% url 'mcd:get_filtered_projects' %}" type="search" class="form-control rounded" placeholder="Search" aria-label="Search"#}
+{#            aria-describedby="search-addon" />#}
+{#            <button class="btn btn-success">#}
+{#                <span class="glyphicon glyphicon-search" id="search-addon"></span>#}
+{#            </button>#}
+{#        </div>#}
+
+        {% include 'mcd/web_components/search-bar.html' with input_href=search_view %}
+
+{#        <a href="{% if request.get_full_path == current_url %}?ordering=-pk#}
+{#                 {% elif request.get_full_path == oldest_first_url %}?ordering=pk#}
+{#                 {% elif request.get_full_path == newest_first_url %}?ordering=-pk#}
+{#                 {% endif %}">#}
+{#            <button>#}
+{#                Event Date#}
+{#            </button>#}
+{#        </a>#}
 
         <ul id="shown_entries" class="list-group">
         {% for object in user_objects %}
@@ -70,7 +81,7 @@
 <script>
     $("#search_input").on('input',function ()
     {
-        const url = $("#search_input").attr("get_filtered_projects");  // get the url of the `load_cities` view
+        const url = $("#search_input").attr("get_filtered_items");  // get the url of the `load_cities` view
 
         const search_query = $(this).val();  // get the selected country ID from the HTML input
         {#const user_id = $(this).val();  // get the selected country ID from the HTML input#}
@@ -125,8 +136,6 @@
                       });
                     //console.log(html_data);
                     $("#shown_entries").html(html_data);
-
-                    console.log(data)
 
                 }
          });

@@ -6,13 +6,18 @@
             See Image List
         </a>
         <br>
+        <a class="text-abel" href="{% url 'mcd:update' photo_analysis.id %}">
+            <span class="sr-only">Settings</span>
+            <span class="glyphicon glyphicon-cog"></span>&nbsp
+            Settings
+        </a>
+        <br>
         <a class="text-abel"
            href="{% url 'mcd:detailed_record_image_pk' photo_analysis.record_id.pk photo_analysis.pk %}">
             <span class="sr-only">Toggle navigation</span>
             <span class="glyphicon glyphicon-search"></span>&nbsp
             Locate Image in Record
             {{ photo_analysis.record_id.title|slice:"20" }}{% if photo_analysis.record_id.title|length > 20 %}...{% endif %}
-{#            "{{ photo_analysis.record_id.title }}"#}
         </a>
     </div>
 {% endblock %}

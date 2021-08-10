@@ -4,11 +4,12 @@
 {% block body %}
 <form class="content-form" method="post" action="">
      {% csrf_token %}
-     <span>
-        Are you sure to delete?
+
+     <span class="margin-bottom-15px text-abel text-large text-align-left">
+        Are you sure you want to delete Project #{{ pk }} {{ title }}?
      </span>
 
-     <button type="submit"> Delete </button>
+     <button class="btn btn-success width100" type="submit"> Delete </button>
 
 </form>
 {% endblock %}

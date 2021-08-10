@@ -1,0 +1,18 @@
+{% block search_bar %}
+    <div class="input-group rounded floating-wrapper turn-off-flex-flow">
+        <input id="search_input" get_filtered_items="{{ input_href }}" type="search" class="form-control rounded" placeholder="Search" aria-label="Search"
+        aria-describedby="search-addon" />
+        <button class="btn btn-success margin-left-5px">
+            <span class="glyphicon glyphicon-search" id="search-addon"></span>
+        </button>
+
+        <a href="{% if request.get_full_path == current_url %}?ordering=-pk
+                 {% elif request.get_full_path == oldest_first_url %}?ordering=pk
+                 {% elif request.get_full_path == newest_first_url %}?ordering=-pk
+                 {% endif %}">
+            <button class="btn btn-success margin-left-5px">
+                <span class="glyphicon glyphicon-sort"></span>
+            </button>
+        </a>
+    </div>
+{% endblock %}

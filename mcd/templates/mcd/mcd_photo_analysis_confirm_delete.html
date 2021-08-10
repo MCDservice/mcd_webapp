@@ -4,11 +4,11 @@
 {% block body %}
 <form class="content-form" method="post" action="">
      {% csrf_token %}
-     <span>
-        Are you sure to delete the photo analysis #{{ current_id }}?
+     <span class="margin-bottom-15px text-abel text-large text-align-left">
+        Are you sure to delete the photo analysis #{{ pk }} {{ title }}?
      </span>
 
-     <button type="submit"> Delete </button>
+     <button class="btn btn-success width100" type="submit"> Delete </button>
 
 </form>
 {% endblock %}

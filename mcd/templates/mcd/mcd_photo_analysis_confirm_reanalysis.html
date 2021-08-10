@@ -1,14 +1,14 @@
 {% extends 'mcd/base.html' %}
-{% block title %} MCD | Confirm Delete  {% endblock %}
+{% block title %} MCD | Confirm Reanalysis  {% endblock %}
 
 {% block body %}
 <form class="content-form" method="post" action="">
      {% csrf_token %}
-     <span>
-        Are you sure to reanalyse photo analysis #{{ current_id }}?
+     <span class="margin-bottom-15px text-abel text-large text-align-left">
+        Are you sure you want to reanalyse photo analysis #{{ pk }} {{ title }}?
      </span>
 
-     <button type="submit"> Reanalyse </button>
+     <button class="btn btn-success width100" type="submit"> Reanalyse </button>
 
 </form>
 {% endblock %}

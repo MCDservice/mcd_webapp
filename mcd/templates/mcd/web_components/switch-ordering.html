@@ -1,0 +1,10 @@
+{% block switch_order %}
+    <a href="{% if request.get_full_path == current_url %}?ordering=-pk
+             {% elif request.get_full_path == oldest_first_url %}?ordering=pk
+             {% elif request.get_full_path == newest_first_url %}?ordering=-pk
+             {% endif %}">
+        <button>
+            Event Date
+        </button>
+    </a>
+{% endblock %}

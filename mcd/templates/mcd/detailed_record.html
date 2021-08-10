@@ -116,22 +116,6 @@
          }
     }
 </script>
-{#    <h1>{{ page_title }}</h1>#}
-
-{#    Number of images in this object: {{ object.num_photos }}#}
-{#    <div class="wrapper-record">#}
-{#        <div id="mySidenav" class="sidenav">#}
-{#  <a href="javascript:void(0)" class="closebtn" onclick="closeNav()">&times;</a>#}
-{#  <a href="#">About</a>#}
-{#  <a href="#">Services</a>#}
-{#  <a href="#">Clients</a>#}
-{#  <a href="#">Contact</a>#}
-{#</div>#}
-{##}
-{#<h2>Animated Sidenav Example</h2>#}
-{#<p>Click on the element below to open the side navigation menu.</p>#}
-{#<span style="font-size:30px;cursor:pointer" onclick="openNav()">&#9776; open</span>#}
-
 
         <div class="wrapper">
         <!-- Sidebar  -->
@@ -254,7 +238,6 @@
                         <b>
                             Record #{{ record.id }} |
                             {{ record.title|slice:"20" }}{% if record.title|length > 20 %}...{% endif %}
-{#                            {{ record.title|truncatechars:9 }}#}
                         </b>
                         &nbsp
                         <a class="text-normal" href="{% url 'mcd:photo_analysis_detailed' display_image.id %}">
@@ -274,7 +257,9 @@
                 {% block comparison_content %}
                 {% endblock %}
             {% else %}
-                <p id="status_json" status_json_url="{{ display_image.analysis_status_json.url }}" ></p>
+                {% if display_image.analysis_status_json %}
+                    <p id="status_json" status_json_url="{{ display_image.analysis_status_json.url }}" ></p>
+                {% endif %}
                 <h3><b>OUTPUT | </b> Classified Masonry Crack Overlay:</h3>
                 <div class="row">
                     {% if not display_image.overlay_photo %}
@@ -324,7 +309,9 @@
                 </div>
 
                 <div>
-                    <button onclick="slide_div_toggle('sliding-divider')" class="btn btn-toggle-menu">Detailed Crack Information</button>
+                    <button onclick="slide_div_toggle('sliding-divider')" class="btn btn-success">
+                        Click for Detailed Crack Information
+                    </button>
                     <div id="sliding-divider" class="sliding-div slide-off">
                             <ul class="list-group-sequence ">
                                 {% for sorted_id in sorted_ids %}
@@ -369,16 +356,10 @@
                                                                           "left": "{{ crack_loc.0 }}",
                                                                           "top": "{{ crack_loc.1 }}"}'>
                                                 #{{ crack_labels|index:forloop.counter0 }}
-        {#                                        {{ crack_lengths|index:forloop.counter0 }}#}
-        {#                                        {% if display_cm|index:forloop.counter0 == 1 %}#}
-        {#                                            cm#}
-        {#                                        {% else %}#}
-        {#                                            px#}
-        {#                                        {% endif %}#}
                                             </p>
                                             <area alt=""
                                                   title="x = {{ crack_loc.0 }} y = {{ crack_loc.1 }} | {{ crack_lengths|index:forloop.counter0 }}"
-                                                  href="#Earth"
+                                                  href="#{{ crack_labels|index:forloop.counter0 }}"
                                                   class="crack-marker"
                                                   coords="{{ crack_loc.0 }},{{ crack_loc.1 }},{{ crack_lengths|index:forloop.counter0 }}"
                                                   shape="circle"
@@ -389,7 +370,6 @@
                                                                     "fillOpacity":0.6}'/>
                                         </div>
                                     {% endfor %}
-            {#                        <area alt="" title="" href="#Sun" coords="448,454,44" shape="circle" data-maphilight="{'strokeColor':'0000ff','strokeWidth':5,'fillColor':'00ff00','fillOpacity':0.6}"/>#}
                             </map>
                         </div>
                     </div>
@@ -408,18 +388,9 @@
     {
         const url = $("#status_json").attr("status_json_url");  // get the url of the `load_cities` view
 
-        {#const project_id = $(this).val();  // get the selected country ID from the HTML input#}
-        {#const user_id = $(this).val();  // get the selected country ID from the HTML input#}
-        console.log("will be reading from: "+url);
-
         $.ajax(
             {   // initialize an AJAX request
                 url: url, // set the url of the request (= /persons/ajax/load-cities/ )
-                //data:
-                //{
-                //    'project_id': project_id       // add the country id to the GET parameters
-                //    {#'project_id': project_id       // add the country id to the GET parameters#}
-                //},
                 success: function (data)
                 {   // `data` is the return of the `load_cities` view function
                     console.log(data);
@@ -431,7 +402,7 @@
                           function()
                           {
                             location.reload();
-                          }, 3000);
+                          }, 100);
                     }
                 },
                 cache: false

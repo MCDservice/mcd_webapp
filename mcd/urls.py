@@ -78,8 +78,13 @@ urlpatterns = [
     url(r'^get-user-records', login_required(login_url="mcd/login")
                       (views.get_user_records), name='get_user_records'),
 
+    # views for the SEARCH BOX:
     url(r'^get-filtered-projects', login_required(login_url="mcd/login")
                       (views.get_filtered_projects), name='get_filtered_projects'),
+    url(r'^get-filtered-records', login_required(login_url="mcd/login")
+                      (views.get_filtered_records), name='get_filtered_records'),
+    url(r'^get-filtered-images', login_required(login_url="mcd/login")
+                      (views.get_filtered_images), name='get_filtered_images'),
 
     # mcd/project-add
     url(r'^project-add/$', login_required(login_url="/mcd/login")

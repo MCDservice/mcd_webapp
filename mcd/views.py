@@ -11,7 +11,7 @@ from mcd.models import MCD_Photo_Analysis, MCD_Project, MCD_Record
 from django.shortcuts import render, \
     redirect, \
     get_object_or_404
-from django.urls import reverse_lazy
+from django.urls import reverse_lazy, reverse
 from google.cloud import storage
 
 # form to create , edit and delete a database object
@@ -135,6 +135,44 @@ class ListAllImagesView(generic.ListView):
     # change the name to refer to user photos
     # ... (in the template) as this:
     context_object_name = 'user_photos'
+    
+    # if you want to turn on paging ...
+    # ... (for example, if there are 100 images, ...
+    # ...  paginate_by = 10 will split 100 images to 10 pages)
+    # ... uncomment the following:
+    # paginate_by = 10
+
+    # GO BACK
+    def paginate_queryset(self, queryset, request, view=None):
+        if 'no_page' in request.query_params:
+            return None
+
+        return super().paginate_queryset(queryset, request, view)
+
+    def get_context_data(self, *, object_list=None, **kwargs):
+        data = super().get_context_data(**kwargs)
+        url = reverse('mcd:get_filtered_images', args=[], kwargs={})
+
+        current_url = reverse('mcd:image-list', args=[], kwargs={})
+        newest_first_url = current_url + '?ordering=pk'
+        oldest_first_url = current_url + '?ordering=-pk'
+
+        data['search_view'] = url
+        data['current_url'] = current_url
+        data['newest_first_url'] = newest_first_url
+        data['oldest_first_url'] = oldest_first_url
+
+        data['num_projects'] = 0
+        data['num_records'] = 0
+        data['num_images'] = 0
+        try:
+            data['num_projects'] = self.request.user.mcd_project_set.count()
+            data['num_records']  = self.request.user.mcd_record_set.count()
+            data['num_images']   = self.request.user.mcd_photo_analysis_set.count()
+        except:
+            pass
+
+        return data
 
     def get_queryset(self):
         # if the user is not logged in, do not return ANY objects ...
@@ -150,8 +188,14 @@ class ListAllImagesView(generic.ListView):
             # filter out the objects that have been uploaded by the current user:
             objects_per_user = MCD_Photo_Analysis.objects.filter(uploaded_by_user_id=user)\
                                             .values_list('uploaded_by_user_id', flat=True).first()
+
+            ordering = self.request.GET.get('ordering')
+            print("GOT ordering:", ordering)
+            if ordering is None:
+                ordering = '-pk'
+
             # return only the objects that match the current user logged in:
-            return MCD_Photo_Analysis.objects.filter(uploaded_by_user_id=objects_per_user)
+            return MCD_Photo_Analysis.objects.filter(uploaded_by_user_id=objects_per_user).order_by(ordering)
 
 
 # @login_required
@@ -168,7 +212,22 @@ class ListAllObjectsView(LoginRequiredMixin, generic.ListView):
     context_object_name = 'user_objects'
     login_url = '/login/'
     redirect_field_name = 'redirect_to'
+    ordering = ['?']
 
+
+    def get_context_data(self, *, object_list=None, **kwargs):
+        data = super().get_context_data(**kwargs)
+        url = reverse('mcd:get_filtered_projects', args=[], kwargs={})
+        current_url = reverse('mcd:object-list', args=[], kwargs={})
+
+        newest_first_url = current_url+'?ordering=pk'
+        oldest_first_url = current_url+'?ordering=-pk'
+
+        data['search_view'] = url
+        data['current_url'] = current_url
+        data['newest_first_url'] = newest_first_url
+        data['oldest_first_url'] = oldest_first_url
+        return data
 
     def get_queryset(self):
         # if the user is not logged in, do not return ANY objects ...
@@ -185,9 +244,12 @@ class ListAllObjectsView(LoginRequiredMixin, generic.ListView):
             objects_per_user = MCD_Project.objects.filter(uploaded_by_user_id=user)\
                                             .values_list('uploaded_by_user_id', flat=True).first()
             # return only the objects that match the current user logged in:
-            return MCD_Project.objects.filter(uploaded_by_user_id=objects_per_user)
 
-
+            ordering = self.request.GET.get('ordering')
+            print("GOT ordering:", ordering)
+            if ordering is None:
+                ordering = '-pk'
+            return MCD_Project.objects.filter(uploaded_by_user_id=objects_per_user).order_by(ordering)
 
 
 
@@ -244,8 +306,24 @@ class ObjectDetailsView(UserPassesTestMixin, generic.DetailView):
         # return only the objects that match the current user logged in:
         # return MCD_Photo_Analysis.objects.filter(project_id=images_in_object)
 
+        # GO BACK
+        url = reverse('mcd:get_filtered_records', args=[], kwargs={})
+        current_url = reverse('mcd:detailed_object', args=[current_object], kwargs={})
+        newest_first_url = current_url+'?ordering=pk'
+        oldest_first_url = current_url+'?ordering=-pk'
+
         data = super().get_context_data(**kwargs)
-        data['records_in_project'] = MCD_Record.objects.filter(project_id=records_in_project)
+        data['search_view'] = url
+        data['current_url'] = current_url
+        data['newest_first_url'] = newest_first_url
+        data['oldest_first_url'] = oldest_first_url
+
+        ordering = self.request.GET.get('ordering')
+        print("GOT ordering:", ordering)
+        if ordering is None:
+            ordering = '-pk'
+
+        data['records_in_project'] = MCD_Record.objects.filter(project_id=records_in_project).order_by(ordering)
         return data
 
 
@@ -319,7 +397,6 @@ class RecordComparison1View(generic.DetailView):
                              extra_tags='danger')
             return ['mcd/detailed_record.html'] #, display_image_1.record_id.pk, display_image_1.pk]
 
-        # GO BACK
 
     # current_object
     # def __init__(self, **kwargs):
@@ -1069,6 +1146,12 @@ class ProjectDelete(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
         else:
             return True
 
+    template_name = 'mcd/mcd_project_confirm_delete.html'
+    def get(self, request, pk):
+        title = MCD_Project.objects.get(pk=pk).title
+        return render(request, self.template_name, {'pk': pk,
+                                                    'title': title})
+
     def post(self, request, *args, **kwargs):
         current_project = self.get_object()  # Add this to load the object
 
@@ -1412,6 +1495,13 @@ class RecordDelete(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
         else:
             return True
 
+    template_name = 'mcd/mcd_record_confirm_delete.html'
+
+    def get(self, request, pk):
+        title = MCD_Record.objects.get(pk=pk).title
+        return render(request, self.template_name, {'pk': pk,
+                                                    'title': title})
+
     def post(self, request, *args, **kwargs):
         record_to_delete = self.get_object()
         record_name = record_to_delete.title
@@ -1588,7 +1678,9 @@ class PhotoAnalysisReanalyse(View):
     template_name = 'mcd/mcd_photo_analysis_confirm_reanalysis.html'
 
     def get(self, request, pk):
-        return render(request, self.template_name, {'pk' : pk})
+        title = MCD_Photo_Analysis.objects.get(pk=pk).title
+        return render(request, self.template_name, {'pk' : pk,
+                                                    'title' : title})
 
     def post(self, request, pk):
         print("recv POST", pk)
@@ -1632,6 +1724,7 @@ class PhotoAnalysisReanalyse(View):
 class PhotoAnalysisDelete(DeleteView):
     # database model we will allow the user to edit/fill-in
     model = MCD_Photo_Analysis
+    template_name = 'mcd/mcd_photo_analysis_confirm_delete.html'
 
     def test_func(self):
         # not allow the user who has not uploaded it to access the data
@@ -1640,6 +1733,11 @@ class PhotoAnalysisDelete(DeleteView):
             return False
         else:
             return True
+
+    def get(self, request, pk):
+        title = MCD_Photo_Analysis.objects.get(pk=pk).title
+        return render(request, self.template_name, {'pk': pk,
+                                                    'title': title})
 
     def post(self, request, *args, **kwargs):
         image_to_delete = self.get_object()
@@ -2085,3 +2183,36 @@ def get_filtered_projects(request):
 
     # return render(request, 'persons/city_dropdown_list_options.html', {'cities': cities})
     return JsonResponse(list(mcd_projects .values('id', 'num_records', 'title')), safe=False)
+
+
+def get_filtered_images(request):
+    # user_id = request.GET.get('user_id')
+    search_query = request.GET.get('search_query')
+
+    print("searching projects that match search string: ", search_query)
+
+    # first filter records that user has uploaded:
+    mcd_photos = MCD_Photo_Analysis.objects.filter(uploaded_by_user_id=request.user).all()
+
+    # then add filter that only match the project as well:
+    mcd_photos = mcd_photos.filter(title__icontains=search_query).all()
+
+    # return render(request, 'persons/city_dropdown_list_options.html', {'cities': cities})
+    return JsonResponse(list(mcd_photos.values('id', 'project_id__title', 'analysis_complete', 'title')), safe=False)
+
+
+def get_filtered_records(request):
+    # user_id = request.GET.get('user_id')
+    search_query = request.GET.get('search_query')
+
+    print("searching projects that match search string: ", search_query)
+
+    # first filter records that user has uploaded:
+    mcd_record = MCD_Record.objects.filter(uploaded_by_user_id=request.user).all()
+    mcd_record = mcd_record.filter(project_id=request.GET.get('project_id')).all()
+
+    # then add filter that only match the project as well:
+    mcd_record = mcd_record.filter(title__icontains=search_query).all()
+
+    # return render(request, 'persons/city_dropdown_list_options.html', {'cities': cities})
+    return JsonResponse(list(mcd_record.values('id', 'num_images', 'title')), safe=False)

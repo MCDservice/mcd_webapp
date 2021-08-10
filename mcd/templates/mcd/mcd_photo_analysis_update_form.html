@@ -17,17 +17,7 @@
                       enctype="multipart/form-data">
                     {% csrf_token %}
 
-{#                    {{ form|crispy }}#}
-                    "{{ current_id }}"
                     {% crispy form %}
-
-{#                    <div class="form-group floating-wrapper">#}
-{#                        <div class="col-sm-offset-2 col-sm-10">#}
-{#                            <button type="submit" class="btn btn-success">#}
-{#                                Submit#}
-{#                            </button>#}
-{#                        </div>#}
-{#                    </div>#}
 
                 </form>
 
@@ -68,43 +58,6 @@ $(document).ready(function ()
 
 <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
 <script>
-   // $(function () {
-   //     dependent_dropdown(); //this calls it on load
-   //     {#$("select#marca").change(dependent_dropdown);#}
-   //     $("#id_project_id").change(dependent_dropdown)
-   // });
-//
-   // function dependent_dropdown()
-   // {
-   //     const url = $("#photo_analysis_form").attr("get-user-records-url");  // get the url of the `load_cities` view
-//
-   //     const project_id = $(this).val();  // get the selected country ID from the HTML input
-   //     {#const user_id = $(this).val();  // get the selected country ID from the HTML input#}
-   //     console.log(project_id);
-//
-   //     $.ajax(
-   //         {   // initialize an AJAX request
-   //             url: url, // set the url of the request (= /persons/ajax/load-cities/ )
-   //             data:
-   //             {
-   //                 'project_id': project_id       // add the country id to the GET parameters
-   //                 {#'project_id': project_id       // add the country id to the GET parameters#}
-   //             },
-   //             success: function (data)
-   //             {   // `data` is the return of the `load_cities` view function
-   //                 {#$("#id_record_id").html(data);  // replace the contents of the city input with the data that came from the server#}
-//
-   //                 let html_data = '<option value="">Create a New Record Automatically</option>';
-   //                 data.forEach(function (city) {
-   //                     html_data += `<option value="${city.id}">${city.title}</option>`
-   //                 });
-   //                 console.log(html_data);
-   //                 $("#id_record_id").html(html_data);
-//
-   //             }
-   //      });
-   // }
-
     $("#id_project_id").change(function () {
         const url = $("#photo_analysis_form").attr("get-user-records-url");  // get the url of the `load_cities` view
 
