@@ -23,12 +23,21 @@ from django.conf import settings
 from django.conf.urls.static import static
 
 from django.contrib.auth import views as auth_views
+from django.shortcuts import render, redirect
+
+def redirect_to_index(request):
+    return redirect('mcd/')
+
+def redirect_to_login(request):
+    return redirect('/mcd/login/')
 
 
 urlpatterns = [
     # path('admin/', admin.site.urls),
+    url(r'^$', redirect_to_index, name='index_redirect'),
     url(r'^admin/', admin.site.urls),
     url(r'^mcd/', include('mcd.urls')),
+    url(r'^accounts/login', redirect_to_login, name='login_redirect'),
 
     url(r'^password-reset/$', auth_views.PasswordResetView.as_view(),
         {'template_name': "mcd/templates/registration/password_reset_form.html"},
