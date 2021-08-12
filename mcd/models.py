@@ -68,6 +68,16 @@ class MCD_Photo_Analysis (models.Model):
     overlay_photo        = models.FileField(null=True, blank=True)
     output_photo         = models.FileField(null=True, blank=True)
     crack_labels_photo   = models.FileField(null=True, blank=True)
+    # [UPDATE/FUTURE/ADD]:
+    # if you want to save more photos, ...
+    # ... add something like this:
+    # another_analysis_photo_output = models.FileField(null=True, blank=True)
+    # ... and then in your terminal, run:
+    # python manage.py makemigrations
+    # ... once that completes, then run:
+    # python manage.py migrate
+    # - this will actually change the database structure!
+
 
     crack_labels_csv     = models.FileField(null=True, blank=True)
     analysis_status_json = models.FileField(null=True, blank=True)

@@ -5,13 +5,8 @@ import math
 import pandas as pd
 import numpy as np
 
-from django.contrib.auth.decorators import login_required
-from django.views import generic
+# import database models (defined in file models.py)
 from mcd.models import MCD_Photo_Analysis, MCD_Project, MCD_Record
-from django.shortcuts import render, \
-    redirect, \
-    get_object_or_404
-from django.urls import reverse_lazy, reverse
 from google.cloud import storage
 
 # form to create , edit and delete a database object
@@ -27,13 +22,15 @@ from django.http import HttpResponse
 from django.shortcuts import render, redirect
 from django.contrib.auth import login, authenticate
 # from .forms import SignupForm
+from django.views import generic
 from django.contrib.sites.shortcuts import get_current_site
 from django.utils.encoding import force_bytes, force_text
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.template.loader import render_to_string
-from .tokens import account_activation_token
 from django.contrib.auth.models import User
 from django.core.mail import EmailMessage
+from django.urls import reverse_lazy, reverse
+from .tokens import account_activation_token
 # end of modules for user account registration
 
 # imports specifically for REST API:
@@ -49,7 +46,8 @@ from rest_framework import status
 from .serializers import MCD_Photo_AnalysisSerializer
 
 import threading
-# from .F_Use_Model import analyse_photo
+# use the P7_Use_Model.py to analyse the photos:
+# the core functionality is in the function 'analyse_photo()'
 from .P7_Use_Model import analyse_photo
 
 
@@ -64,8 +62,23 @@ from django.conf import settings as conf_settings
 
 import os
 from .secretizer import hide_username, hash256sha
-# import os
+
+# if you get an error:
+# DefaultCredentialsError at /mcd/upload/25/118
+# "Could not automatically determine credentials.
+#  Please set GOOGLE_APPLICATION_CREDENTIALS ...
+#  ... or explicitly create credentials and re-run the application."
+# then, go to this link:
+# https://console.cloud.google.com/iam-admin/serviceaccounts/details/105516471793314199998/keys?authuser=4&project=cool-keel-320414&supportedpurview=project
+# (Or if the link does not work in future years:
+# 1) Google Cloud Platform Home Page
+# 2) Find "IAM & Admin" in the menu
+# 3) Service Accounts
+# 4) Add Key
+# 5) Create New Key (OR DOWNLOAD EXISTING KEY!)
+# 6) download the .json file and put it in same folder where manage.py is
 # os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'client_secret_477185057888-brm030gcqnjoo7uijrijesp1ogi8hkah.apps.googleusercontent.com.json'
+os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = os.path.join(os.getcwd(),'cool-keel-320414-6ceb64e6ce52.json')
 
 def clear_tmp_dir():
     import os, shutil
@@ -191,7 +204,6 @@ class ListAllImagesView(generic.ListView):
                                             .values_list('uploaded_by_user_id', flat=True).first()
 
             ordering = self.request.GET.get('ordering')
-            print("GOT ordering:", ordering)
             if ordering is None:
                 ordering = '-pk'
 
@@ -273,10 +285,6 @@ class ObjectDetailsView(UserPassesTestMixin, generic.DetailView):
         # not allow the user who has not uploaded it to access the data
         requested_project = MCD_Project.objects.get(pk=self.kwargs['pk'])
 
-        print("TESTING AUTH for pk", self.kwargs['pk'])
-        print("for user id ", self.request.user.pk)
-        print("analysis uploaded by: ", requested_project.uploaded_by_user_id.pk)
-
         if not requested_project.uploaded_by_user_id.pk == self.request.user.pk:
             # return HttpResponseForbidden("You can't view this Bar.")
             return False
@@ -355,13 +363,9 @@ def read_csv_from_cloud(csv_filename, newline_char):
     csv_cloud_url = 'gs://' + conf_settings.GOOGLE_CLOUD_STORAGE_BUCKET + \
                     '/' + conf_settings.MEDIA_DIR_NAME + csv_filename.replace(
         '\\', '/')
-    print(">>> reading csv from URL: ", csv_cloud_url)
 
     try:
         processed_csv = pd.read_csv(csv_cloud_url, sep=",", lineterminator=newline_char)
-        print(">  >  > dataframe: ", list(processed_csv))
-        print(">  >  > last heading: ", list(processed_csv)[-1])
-
         return processed_csv
     except:
         return pd.DataFrame()
@@ -484,11 +488,9 @@ class RecordComparison1View(generic.DetailView):
 
 
 def get_local_relative_path_from_folder(folder, url):
-    print("got url", url)
     return url.split(os.path.join(folder, ''), 1)[1]
 
 def get_cloud_relative_path_from_folder(folder, url):
-    print("got url", url)
     return url.split(folder+'/', 1)[1]
 
 
@@ -543,10 +545,6 @@ class RecordDetailsView(UserPassesTestMixin, generic.DetailView):
     def test_func(self):
         # not allow the user who has not uploaded it to access the data
         mcd_record = MCD_Record.objects.get(pk=self.kwargs['pk'])
-
-        print("TESTING AUTH for pk", self.kwargs['pk'])
-        print("for user id ", self.request.user.pk)
-        print("analysis uploaded by: ", mcd_record.uploaded_by_user_id.pk)
 
         if mcd_record.num_images == 0:
             return False
@@ -630,6 +628,7 @@ class RecordDetailsView(UserPassesTestMixin, generic.DetailView):
         return data
 
 
+# [IMPORTANT]
 class EnqueuePhotoAnalysis(threading.Thread):
     """
     after the user uploads their image, (or requests an update) ...
@@ -659,6 +658,11 @@ class EnqueuePhotoAnalysis(threading.Thread):
         t.analysis_complete = False
         t.save()  # this will only that analysis is not complete
 
+
+        # CURRENTLY, analyse_photo() in file P7_Use_Model returns FOUR (4)
+        # ... images as output!
+        # IF you want to add more images as output, ...
+        # ... please edit the 'analyse_photo()' function to RETURN more photo URLs!
         overlay_photo_url, \
         output_photo_url,\
         crack_len_url,\
@@ -666,20 +670,18 @@ class EnqueuePhotoAnalysis(threading.Thread):
                                          self.user, self.project_id,
                                          self.record_id, self.analysis_id,
                                          self.status_json.url)
+        # also if there are more models that you have, you can add them like this:
+        # block_photo_url = analyse_blocks(self.input_url.url, self.title,
+        #                                  self.user, self.project_id,
+        #                                  self.record_id, self.analysis_id,
+        #                                  self.status_json.url)
 
-        print("crack_len_url", crack_len_url)
-        print("photo analysed, posting to db index:", self.db_pk)
+        print("[INFO] Photo analysed, posting to Database Index:", self.db_pk)
 
         # get biggest crack length:
-        # sizes = pd.read_csv(conf_settings.MEDIA_URL.split('/')[1]+"\\"+crack_len_url)
-
-        # "https://storage.cloud.google.com/mcd_file_storage/media/142_epoch_45_f1_m_dil_0.796/a_6_32/Sizes.csv"
-
-        # sizes = pd.read_csv(conf_settings.MEDIA_URL.split('/')[1]+"\\"+crack_len_url)
-        # csv_cloud_url = conf_settings.MEDIA_URL + crack_len_url.replace('\\', '/')
         csv_cloud_url = 'gs://'+conf_settings.GOOGLE_CLOUD_STORAGE_BUCKET + \
                         '/'+ conf_settings.MEDIA_DIR_NAME + crack_len_url.replace('\\', '/')
-        print(">>> reading csv from URL: ", csv_cloud_url )
+        print("[INFO] Reading Crack Sizes.csv from URL: ", csv_cloud_url )
 
         # [interoperability]
         # Google Cloud uses Unix-like operating system use \n for new lines, ...
@@ -706,25 +708,27 @@ class EnqueuePhotoAnalysis(threading.Thread):
         if math.isnan(t.crack_length):
             t.crack_length = 0.0
 
-        print(">  >  > 541 dataframe: ", list(sizes))
-        print(">  >  > 542 dataframe: ", sizes)
+        print("[INFO] Successfully Read Dataframe, with Headings: ", list(sizes))
+        print("[INFO] Data Preview: ", sizes)
 
 
         # after the photo has been analysed ...
-        t.output_photo       = output_photo_url  # change field
+        # ... put the links URLs of the output images on the cloud ...
+        # ... in our User Database!
+        t.output_photo       = output_photo_url   # change field
         t.overlay_photo      = overlay_photo_url  # change field
-        t.crack_labels_csv = crack_len_url  # change field
-        t.crack_labels_photo = crack_labels_url  # change field
-        t.analysis_complete  = True # change field
+        t.crack_labels_csv = crack_len_url        # change field
+        t.crack_labels_photo = crack_labels_url   # change field
+        t.analysis_complete  = True               # change field
+
+        # if you add MORE outputs, add something like:
+        # t.another_analysis_output = another_analysis_output_URL # change field
 
         t.datetime_analysed = datetime.datetime.now()
 
-        print("overlay_photo url:", t.overlay_photo)
-
-        print("t_crack_len:", t.crack_length)
-
         try:
-            t.save() # this will update only
+            t.save() # this will save the new output images to database!
+            
         except Exception as e:  # work on python 3.x
             print("[INFO] Posting to database failed, removing files")
             print("[DEBUG] Info for post failure:")
@@ -736,6 +740,12 @@ class EnqueuePhotoAnalysis(threading.Thread):
             delete_file_from_cloud_media(crack_len_url)
             delete_file_from_cloud_media(crack_labels_url)
             delete_file_from_cloud_media(t.analysis_status_json)
+
+            # [EXPAND]
+            # if you added more files as output ...
+            # ... please add more cleanup, like this:
+            # delete_file_from_cloud_media(some_another_file)
+
             print("[INFO] File deletion complete")
 
 def bytes_to_img(bytes):
@@ -757,14 +767,12 @@ def resize_img(img_in_bytes_to_resize):
     # img = cv2.imread('/home/img/python.png', cv2.IMREAD_UNCHANGED)
     img = bytes_to_img(img_in_bytes_to_resize)
 
-    print('Original Dimensions : ', img.shape)
+    print('[INFO] Resizing Image, Original Dimensions : ', img.shape)
 
     # scale_percent = 60  # percent of original size
-    scale = (math.trunc((img.shape[1] * img.shape[0]) / 1000000)) / 1.5
+    scale = (math.trunc((img.shape[1] * img.shape[0]) / 1000000)) / 1.65
     if scale < 1:
         scale = 1
-
-    print("pixels:", img.shape[1] * img.shape[0], "scale:", scale)
 
     width = int(img.shape[1] / scale)
     height = int(img.shape[0] / scale)
@@ -773,10 +781,9 @@ def resize_img(img_in_bytes_to_resize):
     # resize image
     resized = cv2.resize(img, dim, interpolation=cv2.INTER_AREA)
 
-    print('Resized Dimensions : ', resized.shape)
+    print('[INFO] Resized Dimensions : ', resized.shape)
 
     img_str = cv2.imencode('.jpg', resized)[1].tostring()
-
     return img_str
 
 # =============================== Filler Views ================================== #
@@ -1052,25 +1059,26 @@ class PhotoAnalysisCreate(UserPassesTestMixin, CreateView):
         # save the changes made to the database ...
         # ... and get the new assigned ID (primary key by task.id)
         task = form.save()
-        print("form pk2:", form.instance.pk)
 
         # update the number of records of an object:
         from django.db.models import Count
          # annotate the queryset
         num_images = MCD_Project.objects.annotate(number_of_images=Count('mcd_record'))
 
-        print(">>> num_images", num_images)
-
         parent_object = MCD_Project.objects.get(pk=form.instance.project_id.pk)
-        print("> > > ", parent_object.mcd_photo_analysis_set.count())
+
         # for numbered_object in num_images:
-        # print("> > >", parent_object.title, parent_object.number_of_images)
         parent_object.num_images = parent_object.mcd_photo_analysis_set.count()
         parent_object.save()
 
         print("enqueue IN  photo url: ", form.instance.input_photo)
         print("enqueue OUT photo url: ", form.instance.output_photo)
 
+        # [IMPORTANT] - Sending Photo To ANALYSE!
+        # THIS EnqueuePhotoAnalysis calls P7_Use_Model analyse_photo() function ...
+        # ... if you add more output images, please edit EnqueuePhotoAnalysis() ...
+        # ... and analyse_photo(), to deal with additional photos and save them ...
+        # ... to the database
         EnqueuePhotoAnalysis(task.id,
                              form.instance.title,
                              form.instance.uploaded_by_user_id,
@@ -1087,18 +1095,13 @@ class PhotoAnalysisCreate(UserPassesTestMixin, CreateView):
 class ProjectUpdate(generic.UpdateView):
     # database model we will allow the user to edit/fill-in
     model = MCD_Project
-    # form = 'mcd/mcd_record_update_form.html'
 
-    # what attributes do we allow the user to edit?
-    # fields = ['title', 'project_id']
     template_name_suffix = '_update_form'
     previous_name = ""
 
+    # what attributes do we allow the user to edit?
+    # ... the fields are defined in 'forms.py'
     form_class = MCD_ProjectFORM
-
-    # def form_valid(self, form):
-    #     print("form filled in", form.instance.reanalyse)
-    #     return super(PhotoAnalysisUpdate, self).form_valid(form)
 
     def get_context_data(self, **kwargs):
         # get current object primary key (id):
@@ -1109,8 +1112,7 @@ class ProjectUpdate(generic.UpdateView):
         return data
 
     def form_invalid(self, form):
-        print("GOT form invalid")
-        print("form is invalid")
+        print("[INFO] GOT form invalid")
         return HttpResponse("form is invalid.. this is just an HttpResponse object")
 
     def form_valid(self, form):
@@ -1133,7 +1135,6 @@ class ProjectUpdate(generic.UpdateView):
         return redirect('mcd:object-list')
 
 
-# class RecordDelete(DeleteView):
 class ProjectDelete(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
     # database model we will allow the user to edit/fill-in
     model = MCD_Project
@@ -1184,6 +1185,9 @@ class ProjectDelete(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
     #                  extra_tags='success')
     # return redirect('mcd:detailed_object', current_project.pk)
     success_url = reverse_lazy('mcd:index')
+
+# [NOT IMPLEMENTED] - Did not get time to implement DeleteUser securely ...
+# ... so therefore there is not a possibility at this stage to do it
 
 # def delete_user(request, username):
 #     try:
@@ -1254,8 +1258,6 @@ class UserUpdate(View):
 
             user = User.objects.get(pk=request.user.pk)
 
-            print("ID853 user saved")
-
             current_site = get_current_site(request)
             mail_subject = 'Activate your MCD account.'
             message = render_to_string('mcd/activate_email.html', {
@@ -1266,14 +1268,14 @@ class UserUpdate(View):
             })
             to_email = form.cleaned_data.get('email')
 
-            print("ID879 email (to_email)", to_email)
+            print("[INFO] Sending email (to_email)", str(to_email)[:6], "...")
 
             email = EmailMessage(
                 mail_subject, message, to=[to_email]
             )
             email.send()
 
-            print("email is sent to ", to_email)
+            print("[INFO] Email Successfully sent to ", str(to_email)[:6], "...")
 
             logout(request)
 
@@ -1289,18 +1291,6 @@ class UserUpdate(View):
                            extra_tags='danger')
             return redirect('mcd:profile-update')
 
-
-    # def get(self):
-    #
-    # def post(self, request):
-    #     kwargs = {'data': request.POST}
-    #     try:
-    #         kwargs['instance'] = User.objects.get(username=request.POST['username'])
-    #     except:
-    #         pass
-    #     form = UserForm(kwargs **)
-    #     if form.is_valid():
-    #         user = form.save(commit=False)
 
 
 class RecordUpdate(generic.UpdateView):
@@ -1337,9 +1327,6 @@ class RecordUpdate(generic.UpdateView):
 
         return render(request, 'mcd/mcd_record_update_form.html', {'form': form})
 
-    # def form_valid(self, form):
-    #     print("form filled in", form.instance.reanalyse)
-    #     return super(PhotoAnalysisUpdate, self).form_valid(form)
 
     def get_context_data(self, **kwargs):
         # get current object primary key (id):
@@ -1349,22 +1336,13 @@ class RecordUpdate(generic.UpdateView):
         data['current_id'] = int(current_object)
         return data
 
-    # def form_invalid(self, form):
-    #     return HttpResponse("Form is invalid")
 
     def post(self, request, *args, **kwargs):
         form = self.form_class(request.POST)
         # if form_valid(self, form):
         if form.is_valid():
-            print("editing form valid")
-            print(form.fields["title"])
-            print(form.fields["project_id"])
-            print(form.cleaned_data.get("title"))
-            print(form.cleaned_data.get("project_id"))
-            print("end")
 
             pk = self.kwargs.get("pk")
-            print("pk = ", pk)
 
             current_record = MCD_Record.objects.get(pk=pk)
             self.previous_name = current_record.title
@@ -1374,10 +1352,6 @@ class RecordUpdate(generic.UpdateView):
             current_record.project_id = form.cleaned_data.get("project_id") #form.fields["project_id"]
 
             current_record.save()
-            # return super(RecordUpdate, self).form_valid(form)
-
-            print("debug recv POST", pk)
-            # form = self.form_class(None)
 
             current_record = MCD_Record.objects.get(pk=pk)
             current_project = MCD_Project.objects.get(pk=current_record.project_id.pk)
@@ -1395,35 +1369,18 @@ class RecordUpdate(generic.UpdateView):
             return HttpResponse("Form is invalid")
 
 
-    # def post(self, request, pk):
-    #     print("debug recv POST", pk)
-    #     # form = self.form_class(None)
-    #
-    #     current_record = MCD_Record.objects.get(pk=pk)
-    #     current_project = current_record.project_id
-    #
-    #     messages.success(request,
-    #                      'Successfully renamed record from <b>'+self.previous_name+' to <b>'+current_record.title+'</b>.',
-    #                      extra_tags='success')
-    #     return redirect('mcd:detailed_object', current_project.pk)
-
 def move_record(record_to_move, from_project, to_project):
-
-    print("moving record ", record_to_move.title)
-    print("photo analysis connected with this record:")
 
     image_ids_in_record = MCD_Photo_Analysis.objects.filter(record_id=record_to_move.pk) \
         .values_list('record_id', flat=True).first()
     associated_img_analysis = MCD_Photo_Analysis.objects.filter(record_id=image_ids_in_record)
 
-    print("Listing:", associated_img_analysis)
-
     for img_analysis in associated_img_analysis:
-        print(">>> moving record from: ", from_project)
-        print("    moving record to: ", to_project)
+        print("[INFO] Moving record from Project #:", from_project)
+        print("[...] to Project #: ", to_project)
         img_analysis.project_id = to_project
         img_analysis.save()
-        print("------------------")
+        print("[INFO] Successfully moved.")
 
     # get current project:
 
@@ -1436,38 +1393,42 @@ def move_record(record_to_move, from_project, to_project):
     to_project.num_images = to_project.mcd_photo_analysis_set.count()
     to_project.save()
 
-
+# [IMPORTANT] - if you add more photos - please delete them afterwards!
+# (else the files will no longer be associated with the user ...
+# ... but they will still take up the space since they did not get deleted
 def delete_record(record_to_delete):
 
-    print("deleting record ", record_to_delete.title)
-    print("photo analysis connected with this record:")
+    print("[INFO] Deleting record ", record_to_delete.title)
+    print("[INFO] Listing MCD_Photo_Analysis connected with this record:")
 
     image_ids_in_record = MCD_Photo_Analysis.objects.filter(record_id=record_to_delete.pk) \
         .values_list('record_id', flat=True).first()
     associated_img_analysis = MCD_Photo_Analysis.objects.filter(record_id=image_ids_in_record)
 
-    print("Listing:", len(associated_img_analysis), associated_img_analysis)
-
     for img_analysis in associated_img_analysis:
-        print("deleting 'input_photo':", img_analysis.input_photo.name)
+        print("[INFO] deleting 'input_photo':", img_analysis.input_photo.name)
         delete_file_from_cloud_media(img_analysis.input_photo.name)
 
-        print("deleting 'overlay_photo':", img_analysis.overlay_photo.name)
+        print("[INFO] deleting 'overlay_photo':", img_analysis.overlay_photo.name)
         delete_file_from_cloud_media(img_analysis.overlay_photo.name)
 
-        print("deleting 'output_photo':", img_analysis.output_photo.name)
+        print("[INFO] deleting 'output_photo':", img_analysis.output_photo.name)
         delete_file_from_cloud_media(img_analysis.output_photo.name)
 
-        print("deleting 'crack_labels_photo':", img_analysis.crack_labels_photo.name)
+        print("[INFO] deleting 'crack_labels_photo':", img_analysis.crack_labels_photo.name)
         delete_file_from_cloud_media(img_analysis.crack_labels_photo.name)
 
-        print("deleting 'crack_labels_csv':", img_analysis.crack_labels_csv.name)
+        print("[INFO] deleting 'crack_labels_csv':", img_analysis.crack_labels_csv.name)
         delete_file_from_cloud_media(img_analysis.crack_labels_csv.name)
 
-        print("deleting 'analysis_status_json':", img_analysis.analysis_status_json.name)
+        print("[INFO] deleting 'analysis_status_json':", img_analysis.analysis_status_json.name)
         delete_file_from_cloud_media(img_analysis.analysis_status_json.name)
 
-        print("------------------")
+        print("[...] Deleted All")
+
+        # [FUTURE] [ADD]
+        # print("[INFO] deleting 'another_file_field':", image_to_delete.another_file_field.name)
+        # delete_file_from_cloud_media(image_to_delete.another_file_field.name)
 
     # get current project:
     current_project = MCD_Project.objects.get(pk=record_to_delete.project_id.pk)
@@ -1516,10 +1477,6 @@ class RecordDelete(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
                          extra_tags='success')
         return redirect('mcd:detailed_object', record_parent_project.pk)
 
-    # messages.success(self.request,
-    #                  'Successfully renamed record from <b>' + self.previous_name + ' to <b>' + current_record.title + '</b>.',
-    #                  extra_tags='success')
-    # return redirect('mcd:detailed_object', current_project.pk)
     success_url = reverse_lazy('mcd:index')
 
 
@@ -1582,20 +1539,18 @@ class PhotoAnalysisUpdate(LoginRequiredMixin, UpdateView):
             new_record.num_images = new_record.mcd_photo_analysis_set.count()+1
 
             new_record.save()
-            print("------------> saved mcd record:", new_record)
-            print("------------> previ mcd record:", previous_record)
 
             form.instance.record_id = new_record
 
-        print("current img pre-saving:")
-        print("current_img.title:", current_img.title)
-        print("current_img.project_id:", current_img.project_id)
-        print("current_img.record_id:", current_img.record_id)
+        print("[INFO] current img pre-saving:")
+        print("[INFO] current_img.title:", current_img.title)
+        print("[INFO] current_img.project_id:", current_img.project_id)
+        print("[INFO] current_img.record_id:", current_img.record_id)
         current_img = form.save()
-        print("current img post-saving:")
-        print("current_img.title:", current_img.title)
-        print("current_img.project_id:", current_img.project_id)
-        print("current_img.record_id:", current_img.record_id)
+        print("[INFO] current img post-saving:")
+        print("[INFO] current_img.title:", current_img.title)
+        print("[INFO] current_img.project_id:", current_img.project_id)
+        print("[INFO] current_img.record_id:", current_img.record_id)
 
 
         # recompute the statistics of ...
@@ -1603,12 +1558,9 @@ class PhotoAnalysisUpdate(LoginRequiredMixin, UpdateView):
         # ... and records (previous record):
 
         # remove -1 image count from previous project/record
-        print("\nupdating old record:", previous_record.title, previous_record.num_images)
         previous_record.num_images  = previous_record.mcd_photo_analysis_set.count() #-1
         previous_record.save()
-        print("updated old record:", previous_record.title, previous_record.num_images)
 
-        # NOTE - if the project has not changed, -1 + 1 = 0 and the original count remains.
 
         # if the old record now has 0 photos, delete the record:
         if previous_record.num_images == 0:
@@ -1625,23 +1577,23 @@ class PhotoAnalysisUpdate(LoginRequiredMixin, UpdateView):
             previous_project.save()
 
 
-        print("\nupdating old project:", previous_project.title, previous_project.num_images, previous_project.num_records)
+        print("\n[INFO] updating old project:", previous_project.title, previous_project.num_images, previous_project.num_records)
         previous_project.num_images = previous_project.mcd_photo_analysis_set.count() #-1
         previous_project.num_records = previous_project.mcd_record_set.count() #-1
         previous_project.save()
-        print("updated old project:", previous_project.title, previous_project.num_images, previous_project.num_records)
+        print("[INFO] updated old project:", previous_project.title, previous_project.num_images, previous_project.num_records)
 
         # add +1 image count from previous project/record
-        print("\nupdating new record:", new_record.title, new_record.num_images)
+        print("\n[INFO] updating new record:", new_record.title, new_record.num_images)
         new_record.num_images = new_record.mcd_photo_analysis_set.count() #+1
         new_record.save()
-        print("updated new record:", new_record.title, new_record.num_images)
+        print("[INFO] updated new record:", new_record.title, new_record.num_images)
 
-        print("\nupdating new project:", new_project.title, new_project.num_images, new_project.num_records)
+        print("\n[INFO] updating new project:", new_project.title, new_project.num_images, new_project.num_records)
         new_project.num_images = new_project.mcd_photo_analysis_set.count() #+1
         new_project.num_records = new_project.mcd_record_set.count() #+1
         new_project.save()
-        print("updated new project:", new_project.title, new_project.num_images, previous_project.num_records)
+        print("[INFO] updated new project:", new_project.title, new_project.num_images, previous_project.num_records)
 
 
         msg_change = 'Successfully changed details of Image "' + self.previous_name + '"'
@@ -1684,20 +1636,22 @@ class PhotoAnalysisReanalyse(View):
                                                     'title' : title})
 
     def post(self, request, pk):
-        print("recv POST", pk)
-        # form = self.form_class(None)
-
         current_image = MCD_Photo_Analysis.objects.get(pk=pk)
 
-        print("current form:", current_image.title)
-        print(current_image.uploaded_by_user_id)
-        print(current_image.input_photo)
-        print(current_image.output_photo)
-        print(current_image.analysis_complete)
-        print(current_image.analysis_status_json)
-
         # generate the status csv:
-        status_json_filename_on_cloud = current_image.analysis_status_json.url.split("media/")[1]
+        try:
+            status_json_filename_on_cloud = current_image.analysis_status_json.url.split("media/")[1]
+        # if the json file was not created before, create it now:
+        except ValueError:
+            # generate the status csv:
+            status_json_filename_on_cloud = make_cloud_filename_json(hide_username(request.user),
+                                                                     current_image.project_id.pk,
+                                                                     current_image.record_id.pk, current_image.pk,
+                                                                     "status_csv.json")
+            # add the status json URL to MCD_Photo_Analysis object:
+            current_image.analysis_status_json = status_json_filename_on_cloud
+            # and finally, save the added URL to database:
+            current_image.save()
 
         status_json = {'percentage_complete': 0.0,
                        'status': 'initialized',
@@ -1709,6 +1663,11 @@ class PhotoAnalysisReanalyse(View):
         # current_image.analysis_status_json = status_json_filename_on_cloud
         print("[INFO] Re-initialised status JSON to Cloud with filename: ", current_image.analysis_status_json)
 
+        # [IMPORTANT] - Sending Photo To ANALYSE!
+        # THIS EnqueuePhotoAnalysis calls P7_Use_Model analyse_photo() function ...
+        # ... if you add more output images, please edit EnqueuePhotoAnalysis() ...
+        # ... and analyse_photo(), to deal with additional photos and save them ...
+        # ... to the database
         EnqueuePhotoAnalysis(pk,
                              current_image.title,
                              current_image.uploaded_by_user_id,
@@ -1746,23 +1705,27 @@ class PhotoAnalysisDelete(DeleteView):
         image_parent_record = image_to_delete.record_id
         image_parent_project = image_to_delete.project_id
 
-        print("deleting 'input_photo':", image_to_delete.input_photo.name)
+        print("[INFO] deleting 'input_photo':", image_to_delete.input_photo.name)
         delete_file_from_cloud_media(image_to_delete.input_photo.name)
 
-        print("deleting 'overlay_photo':", image_to_delete.overlay_photo.name)
+        print("[INFO] deleting 'overlay_photo':", image_to_delete.overlay_photo.name)
         delete_file_from_cloud_media(image_to_delete.overlay_photo.name)
 
-        print("deleting 'output_photo':", image_to_delete.output_photo.name)
+        print("[INFO] deleting 'output_photo':", image_to_delete.output_photo.name)
         delete_file_from_cloud_media(image_to_delete.output_photo.name)
 
-        print("deleting 'crack_labels_photo':", image_to_delete.crack_labels_photo.name)
+        print("[INFO] deleting 'crack_labels_photo':", image_to_delete.crack_labels_photo.name)
         delete_file_from_cloud_media(image_to_delete.crack_labels_photo.name)
 
-        print("deleting 'crack_labels_csv':", image_to_delete.crack_labels_csv.name)
+        print("[INFO] deleting 'crack_labels_csv':", image_to_delete.crack_labels_csv.name)
         delete_file_from_cloud_media(image_to_delete.crack_labels_csv.name)
 
-        print("deleting 'analysis_status_json':", image_to_delete.analysis_status_json.name)
+        print("[INFO] deleting 'analysis_status_json':", image_to_delete.analysis_status_json.name)
         delete_file_from_cloud_media(image_to_delete.analysis_status_json.name)
+
+        # [FUTURE] [ADD]
+        # print("[INFO] deleting 'another_file_field':", image_to_delete.another_file_field.name)
+        # delete_file_from_cloud_media(image_to_delete.another_file_field.name)
 
         # delete the record itself:
         image_to_delete.delete()
@@ -1798,10 +1761,6 @@ class PhotoAnalysisDelete(DeleteView):
                          extra_tags='success')
         return redirect('mcd:detailed_record', image_parent_record.pk)
 
-    # messages.success(self.request,
-    #                  'Successfully renamed record from <b>' + self.previous_name + ' to <b>' + current_record.title + '</b>.',
-    #                  extra_tags='success')
-    # return redirect('mcd:detailed_object', current_project.pk)
     success_url = reverse_lazy('mcd:index')
 
 
@@ -1845,7 +1804,6 @@ def upload_to_analysis(request):
 
 def submit_to_analysis(request):
     try:
-        print("got name: ", request.POST['input_img'])
         image_to_analyse = request.POST['input_img']
     except (KeyError, MCD_Photo_Analysis.DoesNotExist):
         return render(request, template_name='mcd/upload_to_analysis.html',
@@ -1858,7 +1816,6 @@ def submit_to_analysis(request):
         # ... TODO
         # insert to database of the current user:
         # ... TODO
-        print("got to ELSE in views.py")
         return render(request, template_name='mcd/upload_to_analysis.html',
                       context={
                           'success_message': "Image "+image_to_analyse+" successfully uploaded for analysis"
@@ -1914,7 +1871,7 @@ class UserFormView(View):
             user.is_active = False
             user.save()
 
-            print("ID853 user saved")
+            print("[INFO] New User Saved")
 
             current_site = get_current_site(request)
             mail_subject = 'Activate your MCD account.'
@@ -1926,14 +1883,14 @@ class UserFormView(View):
             })
             to_email = form.cleaned_data.get('email')
 
-            print("ID879 email (to_email)", to_email)
+            print("[INFO] Sending email (to_email)", str(to_email)[:6], "...")
 
             email = EmailMessage(
                 mail_subject, message, to=[to_email]
             )
             email.send()
 
-            print("email is sent to ", to_email)
+            print("[INFO] Email was successfuly sent to ", str(to_email)[:6], "...")
             # return HttpResponse('Please confirm your email address to complete the registration')
 
             # return User objects given correct credentials:
@@ -1968,16 +1925,14 @@ class UserFormView(View):
 
 
 
-
+# [DEPRECATED] - use add_scale_3
 def add_scale(request, pk):
 
     display_image = MCD_Photo_Analysis.objects.get(pk=pk)
 
     try:
         (cx,cy)=list(request.GET.keys())[0].split(',')
-        # cx=request.GET.get('param1')
-        # cy=request.GET.get('param2')
-    # print(">>>> received GET request:", list(request.GET.keys())[0].split(','))
+
     except:
         cx = 0
         cy = 0
@@ -1988,16 +1943,14 @@ def add_scale(request, pk):
     return render(request, "mcd/add_scale.html", {'display_image' : display_image,
                                                   'clicked_x' : x,
                                                   'clicked_y' : y})
-
+# [DEPRECATED] - use add_scale_3
 def add_scale_2(request, pk, cx, cy):
 
     display_image = MCD_Photo_Analysis.objects.get(pk=pk)
 
     try:
         (cx2,cy2)=list(request.GET.keys())[0].split(',')
-        # cx=request.GET.get('param1')
-        # cy=request.GET.get('param2')
-    # print(">>>> received GET request:", list(request.GET.keys())[0].split(','))
+
     except:
         cx2 = 0
         cy2 = 0
@@ -2024,9 +1977,7 @@ def add_scale_3(request, pk, cx, cy, point):
 
     try:
         (cx2,cy2)=list(request.GET.keys())[0].split(',')
-        # cx=request.GET.get('param1')
-        # cy=request.GET.get('param2')
-    # print(">>>> received GET request:", list(request.GET.keys())[0].split(','))
+
     except:
         cx2 = 0
         cy2 = 0
@@ -2041,18 +1992,16 @@ def add_scale_3(request, pk, cx, cy, point):
     # when user fills in the scale information, ...
     # ... need to add that to database:
     if request.POST:
-        print(">>> GOT POST form: ", request.POST.get('input_real_length'),
+        print("[INFO] GOT POST form: ", request.POST.get('input_real_length'),
                                      request.POST.get('input_px_length'))
 
         real_length = float(request.POST.get('input_real_length'))
         px_length   = float(request.POST.get('input_px_length'))
 
-        print("ratio: ", real_length/px_length)
+        print("[INFO] Computed ratio: ", real_length/px_length)
 
         display_image.scale = real_length/px_length
         display_image.save()
-
-
 
         # compute the real scale
 
@@ -2078,12 +2027,11 @@ def logout_view(request):
 def login_view(request):
     if request.method == 'POST':
         form = AuthenticationForm(data=request.POST)
-        print("login form posted ... ")
-        print("form:", form, "valid? ", form.is_valid())
+
         if form.is_valid():
             # log in the user ...
             user = form.get_user()
-            print("user - active? ", user.is_active)
+
             login(request, user)
 
             # if there is an active redirect (after the
@@ -2101,7 +2049,7 @@ def login_view(request):
             # user = form.get_user()
             try: # give a custom message when account has not been activated:
                 user = User.objects.get(username=form.cleaned_data['username'])
-                print("form invalid, is user active?", user.is_active)
+
                 if user.is_active:
                     messages.error(request,
                                    'Invalid Log In Credentials',
@@ -2153,7 +2101,7 @@ def get_user_records(request):
     # user_id = request.GET.get('user_id')
     project_id = request.GET.get('project_id')
 
-    print("getting records of project: ", project_id )
+    print("[INFO] Getting records of project: ", project_id )
     
     # current_user = User.objects.get(pk=user_id)
     current_project = MCD_Project.objects.get(pk=project_id)
@@ -2163,8 +2111,6 @@ def get_user_records(request):
 
     # then add filter that only match the project as well:
     mcd_records = MCD_Record.objects.filter(project_id=current_project.pk).all()
-    print("found these records:")
-    print(mcd_records)
 
     # return render(request, 'persons/city_dropdown_list_options.html', {'cities': cities})
     return JsonResponse(list(mcd_records.values('id', 'title')), safe=False)
@@ -2173,8 +2119,6 @@ def get_user_records(request):
 def get_filtered_projects(request):
     # user_id = request.GET.get('user_id')
     search_query = request.GET.get('search_query')
-
-    print("searching projects that match search string: ", search_query)
 
     # first filter records that user has uploaded:
     mcd_projects = MCD_Project.objects.filter(uploaded_by_user_id=request.user).all()
@@ -2190,8 +2134,6 @@ def get_filtered_images(request):
     # user_id = request.GET.get('user_id')
     search_query = request.GET.get('search_query')
 
-    print("searching projects that match search string: ", search_query)
-
     # first filter records that user has uploaded:
     mcd_photos = MCD_Photo_Analysis.objects.filter(uploaded_by_user_id=request.user).all()
 
@@ -2205,8 +2147,6 @@ def get_filtered_images(request):
 def get_filtered_records(request):
     # user_id = request.GET.get('user_id')
     search_query = request.GET.get('search_query')
-
-    print("searching projects that match search string: ", search_query)
 
     # first filter records that user has uploaded:
     mcd_record = MCD_Record.objects.filter(uploaded_by_user_id=request.user).all()

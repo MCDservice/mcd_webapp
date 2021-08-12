@@ -97,7 +97,7 @@ WSGI_APPLICATION = 'mcd_webapp.wsgi.application'
 #}
 
 # [START db_setup]
-print("debug:",  os.getenv('GAE_APPLICATION', None)==True)
+print("Running on Cloud?:",  os.getenv('GAE_APPLICATION', None)==True)
 if os.getenv('GAE_APPLICATION', None):
     # Running on production App Engine, so connect to Google Cloud SQL using
     # the unix socket at /cloudsql/<your-cloudsql-connection string>
