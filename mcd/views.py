@@ -78,7 +78,10 @@ from .secretizer import hide_username, hash256sha
 # 5) Create New Key (OR DOWNLOAD EXISTING KEY!)
 # 6) download the .json file and put it in same folder where manage.py is
 # os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'client_secret_477185057888-brm030gcqnjoo7uijrijesp1ogi8hkah.apps.googleusercontent.com.json'
-os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = os.path.join(os.getcwd(),'cool-keel-320414-6ceb64e6ce52.json')
+
+RUN_LOCALLY = False
+if RUN_LOCALLY:
+    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = os.path.join(os.getcwd(),'cool-keel-320414-6ceb64e6ce52.json')
 
 def clear_tmp_dir():
     import os, shutil
