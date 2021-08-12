@@ -64,6 +64,7 @@ from django.conf import settings as conf_settings
 
 import os
 from .secretizer import hide_username, hash256sha
+# import os
 # os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'client_secret_477185057888-brm030gcqnjoo7uijrijesp1ogi8hkah.apps.googleusercontent.com.json'
 
 def clear_tmp_dir():

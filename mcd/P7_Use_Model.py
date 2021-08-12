@@ -3,6 +3,7 @@ import io
 import json
 import os
 
+import tensorflow as tf
 from urllib.request import urlopen
 from .secretizer import hash256sha
 import cv2
@@ -12,24 +13,90 @@ from google.cloud import storage, vision
 from django.conf import settings as conf_settings
 
 import matplotlib.pyplot as plt
-
-# def read_file(filename):
-#   print('Reading the full file contents:\n')
-#
-#   gcs_file = gcs.open(filename)
-#   contents = gcs_file.read()
-#   gcs_file.close()
-#   print(contents)
-
 from tempfile import TemporaryFile
 import mimetypes
 
+#=============================================================================
+#          FUNCTION TO RETURN THE PERCENTAGE OF SERVICE STATUS
+#=============================================================================
+
+
 def get_running_status(dist, mode):
+    print("[INFO] Service ", float(dist-200)/1200*100, "% Complete")
     return {'percentage_complete': float((dist-200)/1200),
             'status': mode,
             'error' : 'none'}
 
-def save_memory_to_image_in_cloud(data, location, media_dir=False, colour=False):
+#=============================================================================
+#             END OF FUNCTIONS TO SAVE FILES TO GOOGLE CLOUD
+#=============================================================================
+
+
+def read_model_file_from_cloud(storage_location):
+    # since google cloud uses '/' to indicate directories, ...
+    # ... change all '\' (if any) to '/'
+    storage_location = storage_location.replace('\\', '/')
+    print("[INFO] Reading Model File ", storage_location, " from Google Cloud")
+
+    client = storage.Client()
+    bucket = client.get_bucket(conf_settings.GOOGLE_CLOUD_STORAGE_BUCKET)
+    blob = bucket.blob(storage_location)
+
+    img_as_bytes = blob.download_as_bytes()
+
+    with TemporaryFile() as temp_model:
+        temp_model.write(img_as_bytes)
+        model = tf.keras.models.load_model(img_as_bytes)
+
+    return model
+
+def load_json_model_from_cloud(storage_location):
+    # since google cloud uses '/' to indicate directories, ...
+    # ... change all '\' (if any) to '/'
+    storage_location = storage_location.replace('\\', '/')
+    print("[INFO] Reading JSON Model File ", storage_location, " from Google Cloud")
+
+    client = storage.Client()
+    bucket = client.get_bucket(conf_settings.GOOGLE_CLOUD_STORAGE_BUCKET)
+    blob = bucket.blob(storage_location)
+
+    json_as_bytes = blob.download_as_text()
+    loaded_model_json = json.loads(json_as_bytes)
+
+    print("[INFO] Loaded Model JSON from Cloud, JSON Preview: ",
+          str(loaded_model_json)[:50], "... }")
+
+    model = tf.keras.models.model_from_json(json_as_bytes)
+    return model
+
+def load_weights_from_cloud(model, storage_location):
+    # Just in case the path was given in Windows '\' ...
+    # ... inctead of Linux/Mac '/', we replace it here:
+    storage_location = storage_location.replace('\\', '/')
+
+    # get the necessary Google Storage requirements ...
+    # ... for downloading the file:
+    client = storage.Client()
+    bucket = client.get_bucket(conf_settings.GOOGLE_CLOUD_STORAGE_BUCKET)
+    blob = bucket.blob(storage_location)
+
+    img_as_bytes = blob.download_as_bytes()
+
+    # since tensorflow.python.keras.engine requires a FILEPATH argument ...
+    # ... in 'model.load_weights(FILEPATH), ...
+    # ... therefore, we first write the file ...
+    # ... to a local temporary /tmp/ directory:
+    with open("/tmp/temp.h5", 'w+b') as temp_model_file:
+        temp_model_location = "/tmp/temp.h5"
+        temp_model_file.write(img_as_bytes)
+        temp_model_file.flush()
+
+    # since the caller of this function expects the temporary path ...
+    # ... return the file path we just saved to in the temporary folder:
+    return temp_model_location
+
+
+def save_image_from_memory_to_cloud(data, location, media_dir=False, colour=False):
 
     # since google cloud uses '/' to indicate directories, ...
     # ... change all '\' (if any) to '/'
@@ -38,10 +105,6 @@ def save_memory_to_image_in_cloud(data, location, media_dir=False, colour=False)
     bucket = client.get_bucket(conf_settings.GOOGLE_CLOUD_STORAGE_BUCKET)
 
     with TemporaryFile() as gcs_image:
-        # data.tofile(gcs_image)
-        # cv2.imwrite(gcs_image, data)
-        # cv2.imencode('.png', data, gcs_image)
-
         # encode
         is_success, buffer = cv2.imencode(".png", data)
         io_buf = io.BytesIO(buffer)
@@ -52,27 +115,13 @@ def save_memory_to_image_in_cloud(data, location, media_dir=False, colour=False)
                               content_type=mimetypes.MimeTypes().guess_type(location)[0])
 
 
-def save_plt_to_image_in_cloud(data, location, media_dir=False, colour=False):
+def save_plt_image_to_cloud(data, location, media_dir=False, colour=False):
 
     # since google cloud uses '/' to indicate directories, ...
     # ... change all '\' (if any) to '/'
     location = location.replace('\\', '/')
     client = storage.Client()
-
     bucket = client.get_bucket(conf_settings.GOOGLE_CLOUD_STORAGE_BUCKET)
-
-    # plt.plot(data)
-    # fig_to_upload = plt.gcf()
-
-    # # Save figure image to a bytes buffer
-    # buf = io.BytesIO()
-    # # fig_to_upload.savefig(buf, format='png')
-    # plt.imsave(data, buf)
-    # buf.seek(0)
-    # image_as_a_string = base64.b64encode(buf.read())
-    #
-    # blob = bucket.blob(media * ('media/') + location)
-    # blob.upload_from_string(image_as_a_string, content_type='image/png')
 
     with TemporaryFile() as temp_image:
         plt.imsave(temp_image, data)
@@ -80,31 +129,23 @@ def save_plt_to_image_in_cloud(data, location, media_dir=False, colour=False):
 
         blob = bucket.blob(media_dir * (conf_settings.MEDIA_DIR_NAME) + location)
         blob.upload_from_file(temp_image, content_type='image/png')
-    #     # encode
-    #     is_success, buffer = cv2.imencode(".png", data)
-    #     io_buf = io.BytesIO(buffer)
-    #
-    #     gcs_image.seek(0)
-    #
-    #     blob = bucket.blob(media*('media/') + location)
-    #     blob.upload_from_file(io_buf,
-    #                           content_type=mimetypes.MimeTypes().guess_type(location)[0])
 
 
 def save_csv_to_cloud(dataframe, location, media_dir=False):
     # since google cloud uses '/' to indicate directories, ...
     # ... change all '\' (if any) to '/'
     location = location.replace('\\', '/')
-
-    # os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'C:\\Users\\Dom\\AppData\\Local\\Google\\Cloud SDK\\mcd_webapp\\mcd\\client_secret_477185057888-brm030gcqnjoo7uijrijesp1ogi8hkah.apps.googleusercontent.com.json'
+    # might need setting:
+    # os.environ['GOOGLE_APPLICATION_CREDENTIALS' = ...
+    # (if it gives an error here)
 
     client = storage.Client()
     bucket = client.get_bucket(conf_settings.GOOGLE_CLOUD_STORAGE_BUCKET)
+    bucket.blob(media_dir*(conf_settings.MEDIA_DIR_NAME) + location).upload_from_string(dataframe.to_csv(),
+                                                                                        'text/csv')
 
-    bucket.blob(media_dir*(conf_settings.MEDIA_DIR_NAME) + location).upload_from_string(dataframe.to_csv(), 'text/csv')
 
-
-def save_to_cloud(file_to_upload, filename, media_dir=False):
+def save_bytes_to_cloud(file_to_upload, filename, media_dir=False):
     ### --------- GOOGLE CLOUD STORAGE COMPATIBILITY ----------- ###
     # Create a Cloud Storage client.
     gcs = storage.Client()
@@ -121,8 +162,8 @@ def save_to_cloud(file_to_upload, filename, media_dir=False):
         # content_type=uploaded_file.content_type
     )
 
-def save_json_to_cloud(status_dictionary, status_json_filename_on_cloud):
-
+def save_json_to_cloud(status_dictionary, status_json_filename_on_cloud, message="Saving Service Status"):
+    print("[INFO]", message)
     json_object = json.dumps(status_dictionary, indent=4)
 
     # Create a Cloud Storage client.
@@ -140,53 +181,30 @@ def save_json_to_cloud(status_dictionary, status_json_filename_on_cloud):
         content_type='application/json'
     )
 
-    # The public URL can be used to directly access the uploaded file via HTTP.
-    print("blob path:", blob.path)
-    print("blob purl:", blob.public_url)
-
-    # upload_file_to_cloud(json_object, status_json_filename_on_cloud, set_content_type='application/json')
-
 def read_json_from_cloud(filename):
     from google.cloud import storage
 
     print(">>> Reading JSON file ", filename, " Blob from bucket ...")
 
     storage_client = storage.Client()
-    bucket = storage_client.get_bucket('mcd_file_storage')
-
+    bucket = storage_client.get_bucket(conf_settings.GOOGLE_CLOUD_STORAGE_BUCKET)
     blob = bucket.blob(filename)
 
     json_as_string = blob.download_as_bytes()
-    print("<> <> <> img as string: ", json_as_string)
 
     return json.loads(json_as_string)
 
-def read_file(filename, readFlag=cv2.IMREAD_COLOR):
-    import io
-    import numpy as np
-    from google.cloud import storage
-
-    print(">>> Reading file ", filename, " Blob from bucket ...")
+def load_image_from_cloud(filename, readFlag=cv2.IMREAD_COLOR):
+    print("[INFO] Loading Image:", filename, " from Cloud")
 
     storage_client = storage.Client()
-    bucket = storage_client.get_bucket('mcd_file_storage')
-
+    bucket = storage_client.get_bucket(conf_settings.GOOGLE_CLOUD_STORAGE_BUCKET)
     blob = bucket.blob(filename)
 
-    img_as_string = blob.download_as_bytes()
-    print("<> <> <> img as string: ", img_as_string)
+    img_as_bytes = blob.download_as_bytes()
+    print("[INFO] Successfully read Image from Cloud, Byte Preview ", str(img_as_bytes)[:20])
 
-    # image = np.frombuffer(img_as_string)
-    # with io.BytesIO() as in_memory_file:
-    #     blob.download_to_file(in_memory_file)
-    #     in_memory_file.seek(0)
-    #     image = np.load(in_memory_file, allow_pickle=True)
-    #
-    # # then, for example:
-    # print(image)
-    # return cv2.imdecode(image, np.uint8, readFlag)
-
-    return cv2.imdecode(np.frombuffer(img_as_string, np.uint8), -1)
+    return cv2.imdecode(np.frombuffer(img_as_bytes, np.uint8), -1)
 
 def url_to_image(url, readFlag=cv2.IMREAD_COLOR):
     # download the image, convert it to a NumPy array, and then read
@@ -198,6 +216,14 @@ def url_to_image(url, readFlag=cv2.IMREAD_COLOR):
     # return the image
     return image
 
+#=============================================================================
+#             END OF FUNCTIONS TO SAVE FILES TO GOOGLE CLOUD
+#=============================================================================
+
+
+#=================================================================================
+# The Original File P7_Use_Model.py has been moved to this function analyse_photo
+#=================================================================================
 
 def analyse_photo(Image_Path, Image_Name,
                   user, project_id, record_id, analysis_id, status_json):
@@ -214,48 +240,52 @@ def analyse_photo(Image_Path, Image_Name,
     #-----------------------------------------------------------------------------
 
     # lets you choose the file (if False, uses Image_Path from below)
+    # (Disabled for Cloud, because the file comes from user input)
     Image_Browser = False
 
-    #
+    # Flag to save the output:
     Save_Output = True
+
+    # Use Local h5 file, instead of downloading from the Cloud
+    # (because the h5 file is big, it should be a lot faster ...
+    #  ... to use a local one for testing locally)
+    Use_Local_Model = False
 
     #-----------------------------------------------------------------------------
 
-    # Image path now given as a function argument
-    # Image_Path = "Input//Database//Images//M1-019.jpg"
+    if Use_Local_Model:
+        # Expecing an .h5 file in mcd_webapp/mcd/*.h5
+        # (Same Folder as this Script)
+        current_directory = os.getcwd()
+        print("[INFO] Found Models in Folder: ", current_directory)
+        model_paths = []
+        for file in os.listdir(os.getcwd()):
+            if file.endswith(".h5"):
+                model_file = os.path.join(current_directory, file)
+                print(model_file)
+                model_paths.append(model_file )
 
-    # Model_Path = "C://+ BACKUP//PROGRAM DATA//PYTHON//CNN - Semantic Segmentation//Output//+ Tests//+ Best//"
-    # Model_Path += "Blocks2_198_epoch_97_val_F1_score_0.960.h5"
-    #
-    # JModel_Path = "C://+ BACKUP//PROGRAM DATA//PYTHON//CNN - Semantic Segmentation//Output//+ Tests//+ Best//"
-    # JModel_Path += "Blocks2_198_(Model).json"
+        # Choose the first .h5 file that was found locally:
+        Model_Path = model_paths[0]
 
-    # new model:
-    # Model_Path = "C://Users//Dom//Documents//3-Year//2021-Internship//" \
-    #               "pretrained-model//model for crack detection//" \
-    #               "142_epoch_45_f1_m_dil_0.796.h5"
+        if len(model_paths) > 1:
+            print("[WARNING] More than 1 Model file in Path:", current_directory)
+            print("[...] Please leave only one .h5 file")
+            print("[...] Now picked the first .h5 file that was found:")
+            print(Model_Path)
 
-    Model_Path = "https://storage.cloud.google.com/" \
-                 "mcd_file_storage/pretrained-model/" \
-                 "model-for-crack-detection/142_epoch_45_f1_m_dil_0.796.h5"
 
-    #
-    # JModel_Path5 = "C://Users//Dom//Documents//3-Year//2021-Internship//" \
-    #                "crack_detection_CNN_masonry//output//model_json//" \
-    #                "crack_detection_44072.json"
+    else: # if not locally, get Model File from this Cloud Storage URL:
+        Model_Path = "https://storage.cloud.google.com/"+\
+                     conf_settings.GOOGLE_CLOUD_STORAGE_BUCKET+"/pretrained-model/" +\
+                     "model-for-crack-detection/142_epoch_45_f1_m_dil_0.796.h5"
 
-    # JModel_Path = "C://Users//Dom//Documents//3-Year//2021-Internship//" \
-    #                "pretrained-model//model for crack detection//" \
-    #                "my_dataset_VGG16_FCN_142.json"
+    JModel_Path = "https://storage.cloud.google.com/"+\
+                  conf_settings.GOOGLE_CLOUD_STORAGE_BUCKET+"/pretrained-model/"+\
+                  "model-for-crack-detection/my_dataset_VGG16_FCN_142.json"
 
-    JModel_Path = "https://storage.cloud.google.com/" \
-                  "mcd_file_storage/pretrained-model/" \
-                  "model-for-crack-detection/" \
-                  "my_dataset_VGG16_FCN_142.json"
-
-    # Output_Path = "Output//Images"
     Output_Path = "media"
-    # Cloud_Base_Dir = conf_settings.MEDIA_DIR_NAME
+
 
     #=============================================================================
     # Image-size options (Input and output of model)
@@ -407,6 +437,18 @@ def analyse_photo(Image_Path, Image_Name,
     Evaluate_Metrics = True
 
     #=============================================================================
+    #                    SET UP SERVER STATUS REPORTING:
+    #=============================================================================
+
+    json_pure_filename = status_json.split(conf_settings.MEDIA_DIR_NAME, 1)[1]
+    print("[INFO] Reading Status JSON:", conf_settings.MEDIA_DIR_NAME+json_pure_filename)
+    JSON_status = read_json_from_cloud(conf_settings.MEDIA_DIR_NAME+json_pure_filename )
+    print("[INFO] Successfully got JSON status file:", JSON_status)
+
+    status_dict = get_running_status(400, "packages_initialised")
+    save_json_to_cloud(status_dict, json_pure_filename)
+
+    #=============================================================================
     #                          IMPORTING PACKAGES
     #=============================================================================
 
@@ -414,22 +456,17 @@ def analyse_photo(Image_Path, Image_Name,
     print("[INFO] Package Importing Started")
 
     #-----------------------------------------------------------------------------
-    print(">>> Made it to 358")
     # import the necessary packages
     import time
     # Start timer
     start0 = time.time()
     start = start0
 
-    print(">>> Made it to 365")
     # import the necessary packages
-    import os
-    print(">>> Made it to 368")
     # (Optional) Enable CUDA growth if it gives issues.
     # os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
     os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 
-    print(">>> Made it to 372")
     # (Optional) Disable tensorflow warnings.
     # os.environ['AUTOGRAPH_VERBOSITY'] = '0'
     # SM Compatibility option with TF 2.0+
@@ -437,13 +474,11 @@ def analyse_photo(Image_Path, Image_Name,
 
     # turn off the GPU being used for cloud services:
     os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
-    print(">>> Made it to 376")
 
-    import tensorflow as tf
     cfg = tf.compat.v1.ConfigProto()
     cfg.gpu_options.per_process_gpu_memory_fraction = 0.01
 
-    print(">>> Made it to 380")
+    print("[INFO] Successfully configured tensorflow")
 
     # import the necessary packages
     #import os
@@ -466,13 +501,8 @@ def analyse_photo(Image_Path, Image_Name,
     import skimage.segmentation
     import scipy.ndimage
 
-    print(">>> Made it to 401")
+    print("[INFO] Successfully Imported skimage")
 
-    json_pure_filename = status_json.split("media/", 1)[1]
-    print("[INFO] Reading Status JSON:", "media/"+json_pure_filename)
-    JSON_status = read_json_from_cloud("media/"+json_pure_filename )
-    print("[GOT] JSON Object:")
-    print(JSON_status)
 
     status_dict = get_running_status(473, "packages_initialised")
     save_json_to_cloud(status_dict, json_pure_filename)
@@ -485,7 +515,7 @@ def analyse_photo(Image_Path, Image_Name,
 
     #-----------------------------------------------------------------------------
 
-    print(">>> Made it to 411")
+    print("[INFO] Successfully Imported tensorflow.keras.models")
 
     # (Optional) Enable growth CUDA if it gives issues.
     # os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
@@ -494,8 +524,6 @@ def analyse_photo(Image_Path, Image_Name,
     # Destroy plotted windows
     cv2.destroyAllWindows()
     plt.close('all')
-
-    print(">>> Made it to 421")
 
     #-----------------------------------------------------------------------------
 
@@ -510,7 +538,7 @@ def analyse_photo(Image_Path, Image_Name,
     print("")
     print("[INFO] Mini Functions Started")
     start = time.time()
-    status_dict = get_running_status(513, "mini_functions_startedd")
+    status_dict = get_running_status(513, "mini_functions_started")
     save_json_to_cloud(status_dict, json_pure_filename)
 
     #-----------------------------------------------------------------------------
@@ -535,7 +563,7 @@ def analyse_photo(Image_Path, Image_Name,
 
 
     # Delete folder
-    # (turn of path creation for cloud service usage ... )
+    # (turn off path creation for cloud service usage ... )
     # def DeleteFolder(FullPath):
     #     FullPath = pathlib.Path(FullPath)
     #     try:
@@ -544,8 +572,6 @@ def analyse_photo(Image_Path, Image_Name,
     #         pass
 
     #-----------------------------------------------------------------------------
-
-    #import numpy as np
 
     # Create circular kernel with custom values and modes
     def CircularKernel(Ksize,Mode=1,Value1=0,Value2=1):
@@ -571,9 +597,6 @@ def analyse_photo(Image_Path, Image_Name,
         return kernel
 
     #-----------------------------------------------------------------------------
-
-    #import cv2
-    #import numpy as np
 
     # Pad image by specified values
     def EqualPadding(Image,Pad=1,PadValue=255):
@@ -623,9 +646,6 @@ def analyse_photo(Image_Path, Image_Name,
 
     #-----------------------------------------------------------------------------
 
-    # Image_Path = "http://127.0.0.1:8000" + Image_Path
-    print("Image Path (as parameter): ", Image_Path)
-    # Image_Path = str(pathlib.Path(Image_Path))
     Model_Path = str(pathlib.Path(Model_Path))
     JModel_Path = str(pathlib.Path(JModel_Path))
     Output_Path = str(pathlib.Path(Output_Path))
@@ -639,29 +659,32 @@ def analyse_photo(Image_Path, Image_Name,
     print("Model Name", Model_Name)
 
     Predictions_Path = os.path.join(Output_Path, Model_Name)
+    # instead of saving folders CV2 or PLT, we just save to one place
+    # (I am no longer using AllPredictions_Path1 and AllPredictions_Path2)
     AllPredictions_Path = os.path.join(Output_Path, Model_Name, Image_Name)
     AllPredictions_Path1 = os.path.join(AllPredictions_Path, "CV2")
     AllPredictions_Path2 = os.path.join(AllPredictions_Path, "PLT")
 
+    # the username is given already hashed to hide the user details:
     Predictions_Path = user+'_'+str(project_id)+'_'+str(record_id)+'_'+str(analysis_id)
+    # so, prediction path will look something like:
+    # a94a8fe5ccb19ba61c4c0873d391e987982fbbd3_13_106_146,
+    # where: a94a8fe5ccb19ba61c4c0873d391e987982fbbd3 - is the hashed username,
+    #        13 - is the project ID
+    #        106 - is the record ID
+    #        146 - is the analysis ID
+
     AllPredictions_Path = Predictions_Path
     AllPredictions_Path1 = Predictions_Path
     AllPredictions_Path2 = Predictions_Path
 
-    print("[INFO] Showing created paths:")
-    print("Predictions_Path '.png':", Predictions_Path)
-    print("AllPredictions_Path ' (Fig).png':", AllPredictions_Path)
-    print("AllPredictions_Path1 [Save using CV2]:", AllPredictions_Path1)
-    print("AllPredictions_Path2 [Save using PLT]:", AllPredictions_Path2)
+    print("[INFO] Showing created path:")
+    print("[INFO] Predictions_Path '.png':", Predictions_Path)
 
-    print("[NEW] Suggested new path:")
-    print(">>> media/", user, "/", project_id, "/", record_id, "/", analysis_id, sep="")
-    print(">>> media/", hash256sha(user+'_'+str(project_id)+'_'+str(record_id)+'_'+str(analysis_id)))
+    # The Paths will be Hashed as such (ensures equal length filenames and hides user detail:
+    # conf_settings.MEDIA_DIR_NAME, user, "/", project_id, "/", record_id, "/", analysis_i
+    # conf_settings.MEDIA_DIR_NAME, hash256sha(user+'_'+str(project_id)+'_'+str(record_id)+'_'+str(analysis_id)
 
-
-    # DeleteFolder(AllPredictions_Path)
-    # CreatePath(AllPredictions_Path1)
-    # CreatePath(AllPredictions_Path2)
 
     #-----------------------------------------------------------------------------
 
@@ -682,174 +705,58 @@ def analyse_photo(Image_Path, Image_Name,
 
     #-----------------------------------------------------------------------------
 
-    def read_model_file(storage_location):
-        import numpy as np
-        from google.cloud import storage
-
-        # since google cloud uses '/' to indicate directories, ...
-        # ... change all '\' (if any) to '/'
-        storage_location = storage_location.replace('\\', '/')
-
-        print(">>> Reading file ", storage_location, " Blob from bucket ...")
-
-        client = storage.Client()
-        bucket = client.get_bucket(conf_settings.GOOGLE_CLOUD_STORAGE_BUCKET)
-
-        blob = bucket.blob(storage_location)
-
-
-        img_as_string = blob.download_as_bytes()
-        # img_as_string = blob.download_as_text()
-        # print("... the read file looks like this: ", img_as_string )
-
-        with TemporaryFile() as temp_model:
-            # temp_model_location = './temp_model.h5'
-            # temp_model = open(temp_model_location, 'wb')
-            temp_model.write(img_as_string)
-            model = tf.keras.models.load_model(img_as_string)
-
-        return model
-
-    def load_json_model_from_cloud(storage_location):
-        import numpy as np
-        from google.cloud import storage
-
-        # since google cloud uses '/' to indicate directories, ...
-        # ... change all '\' (if any) to '/'
-        storage_location = storage_location.replace('\\', '/')
-
-        print(">>> Reading file ", storage_location, " Blob from bucket ...")
-
-        client = storage.Client()
-        bucket = client.get_bucket(conf_settings.GOOGLE_CLOUD_STORAGE_BUCKET)
-        print("bucket:", bucket)
-
-        blob = bucket.blob(storage_location)
-        print("blob:", blob)
-
-        img_as_string = blob.download_as_text()
-
-        loaded_model_json = json.loads(img_as_string)
-        print("1) loaded_model_json", loaded_model_json)
-        # img_as_string = blob.download_as_text()
-        # print("... the read file looks like this: ", img_as_string )
-
-        model = tf.keras.models.model_from_json(img_as_string)
-
-        return model
-
-    def load_weights_from_cloud(model, storage_location):
-        storage_location = storage_location.replace('\\', '/')
-
-        client = storage.Client()
-        bucket = client.get_bucket(conf_settings.GOOGLE_CLOUD_STORAGE_BUCKET)
-
-        blob = bucket.blob(storage_location)
-
-        img_as_string = blob.download_as_bytes()
-
-        # temp_model_location = './temp_model.h5'
-
-        # from pathlib import Path
-        # Path("tmp/").mkdir(parents=True, exist_ok=True)
-
-        print("WRITING TO FILE")
-
-        path = "C:\\Users\\Dom\\AppData\\Local\\Google\\Cloud SDK\\mcd_webapp\\mcd\\tmp\\"
-        temp_model_location = 'tmp_weights.h5'
-
+    # Load CNN model
+    if Use_Local_Model:
         try:
-            with open(path+temp_model_location, 'wb') as temp_model_file:
-                temp_model_file.write(img_as_string)
-                temp_model_file.flush()
+            model = load_model(Model_Path, compile=False, custom_objects={'tf': tf})
+            print("[INFO] Loaded Full Model")
         except:
-            with open("/tmp/temp.h5", 'w+b') as temp_model_file:
-                temp_model_location = "/tmp/temp.h5"
-                temp_model_file.write(img_as_string)
-                temp_model_file.flush()
+            # currently still getting the JSON files from cloud ...
+            # ... but if you decide to also do JSON files locally, ...
+            # ... you can comment this code and uncomment the code beloww
+            # (but JSON files are small, so downloading them from Cloud ...
+            #  ... should be fine!)
+            google_bucket_name = conf_settings.GOOGLE_CLOUD_STORAGE_BUCKET
+            relative_json_model_path = JModel_Path.split(os.path.join(google_bucket_name, ''), 1)[1]
+            model = load_json_model_from_cloud(relative_json_model_path)
+            print("[INFO] Loaded Json Model")
+            # if you also want to load JSON files locally, ...
+            # ... you can uncomment this code and make sure ...
+            # ... that you set up the correct JModel_Path:
+            # model = model_from_json(JModel_Path, custom_objects={'tf': tf})
+            # model.load_weights(Model_Path)
+            # print("[INFO] Loaded Json Model")
 
-        # temp_model_file = open(temp_model_location, 'w+b')
-        # temp_model_file.close()
-        # model_file.close()
-
-        # model = model.load_weights(temp_model_file.name)
-        return temp_model_location
-
-        # model.load_weights(temp_model_location)
-        # print("loaded the weights")
-
-        # # with TemporaryFile() as temp_model_file:
-        # import tempfile
-        # # with tempfile.NamedTemporaryFile(suffix='.h5', prefix=os.path.basename(__file__)) \
-        # #         as temp_model_file:
-        # with tempfile.NamedTemporaryFile(mode='w+b', suffix='.h5', prefix='tmp', dir=None, delete=True) \
-        #     as temp_model_file:
-        #     # temp_model_location = './temp_model.h5'
-        #     # temp_model_file = open(temp_model_location, 'wb')
-        #     temp_model_file.write(img_as_string)
-        #     # temp_model_file.close()
-        #     # model_file.close()
-        #
-        #     model = model.load_weights(temp_model_file.name)
-
-        # return model_new
-
-    # Load CNN model
-    # try:
-        # model = load_model(Model_Path, compile=False, custom_objects={'tf': tf})
-        # print("[INFO] Loaded Full Model")
-    # except:
-        # json_file = open(JModel_Path, 'r')
-        # loaded_model_json = json_file.read()
-        # json_file.close()
-        # model = model_from_json(loaded_model_json, custom_objects={'tf': tf})
-        # model.load_weights(Model_Path)
-        # print("[INFO] Loaded Json Model")
-
-    # Load CNN model
-    # try:
-        # 1. Load the file from gs storage
-        # from tensorflow.python.lib.io import file_io
-        # model_file = file_io.FileIO('gs://mcd_file_storage/pretrained-model/model-for-crack-detection/142_epoch_45_f1_m_dil_0.796.h5', mode='rb')
-        #
-        # #  2. Save a temporary copy of the model
-        # with TemporaryFile() as temp_model:
-        #     # temp_model_location = './temp_model.h5'
-        #     # temp_model = open(temp_model_location, 'wb')
-        #     temp_model.write(model_file.read())
-        #     model = tf.keras.models.load_model(temp_model)
+            # ... But getting the Model Locally:
+            model.load_weights(Model_Path)
+            print("[INFO] Loaded the Model Weights")
 
 
-    relative_model_path      = Model_Path.split(os.path.join("mcd_file_storage", ''), 1)[1]
-    relative_json_model_path = JModel_Path.split(os.path.join("mcd_file_storage", ''), 1)[1]
+    else: # if using Cloud Paths:
+        google_bucket_name = conf_settings.GOOGLE_CLOUD_STORAGE_BUCKET
+        relative_model_path = Model_Path.split(os.path.join(google_bucket_name, ''), 1)[1]
+        relative_json_model_path = JModel_Path.split(os.path.join(google_bucket_name, ''), 1)[1]
+        try:
+            model  = read_model_file_from_cloud(relative_model_path)
+            print("[INFO] Loaded Full Model")
+        except:
+            model = load_json_model_from_cloud(relative_json_model_path)
+            temp_model_location = load_weights_from_cloud(model, relative_model_path)
+            model.load_weights(temp_model_location)
 
-    print("Model path: ", Model_Path, Model_Path.split(os.path.join("mcd_file_storage", ''), 1)[1])
-    print("Relative Model path: ", relative_model_path)
-    try:
-        model  = read_model_file(relative_model_path)
-        # model = load_model(Model_Path, compile=False, custom_objects={'tf': tf})
-        print("[INFO] Loaded Full Model")
-    except:
-        model = load_json_model_from_cloud(relative_json_model_path)
+            print("[INFO] Loaded the model weights")
+            print("[INFO] Loaded Json Model")
 
-        temp_model_location = load_weights_from_cloud(model, relative_model_path)
-        model.load_weights(temp_model_location)
 
-        print("[INFO] Loaded the model weights")
-        print("[INFO] Loaded Json Model")
-
-    print("[SUCCESS]")
-
+    status_dict = get_running_status(720, "loaded_model")
+    save_json_to_cloud(status_dict, json_pure_filename)
 
     # Load image
-    # Source = cv2.imread(Image_Path)
-    print(">>> Image_Path:", Image_Path)
-    # Source = url_to_image(Image_Path)
-    # Source = url_to_image("https://storage.cloud.google.com/mcd_file_storage/media/a_6_32")
-    # Source = read_file("media/a_6_32")
-    file_name = Image_Path.split("media/", 1)[1]
-    print(">>> Reading:", "media/"+file_name)
-    Source = read_file("media/"+file_name)
+    print("[INFO] Loading User-given Image from Google Cloud, Image_Path =", Image_Path)
+
+    file_name = Image_Path.split(conf_settings.MEDIA_DIR_NAME, 1)[1]
+    print(">>> Reading:", conf_settings.MEDIA_DIR_NAME+file_name)
+    Source = load_image_from_cloud(conf_settings.MEDIA_DIR_NAME + file_name)
     List_Images = [["Original Image",np.copy(Source)]]
 
     # put JSON here?
@@ -1247,6 +1154,9 @@ def analyse_photo(Image_Path, Image_Name,
     # make a dictionary to refer to image paths later:
     url_dict = {}
 
+    # MODIFIED for the Cloud
+    # (since we don't use ALL the outputs in the Cloud App)
+    # IN THE FOLLOWING LIST:
     # choose which images to save on the cloud:
     # choices (+ in front indicates currently chosen ones)
     # "CNN Output (O)"
@@ -1256,7 +1166,6 @@ def analyse_photo(Image_Path, Image_Name,
     # +"Overlay"
     # "Skeleton"
     # +"Final Watershed"
-
     titles_to_save = ["Overlay", "Binarised (t=" + str(Bin_Threshold) + ")",
                       "crack_len_csv", "Final Watershed"]
 
@@ -1275,11 +1184,10 @@ def analyse_photo(Image_Path, Image_Name,
         Figure_Path = os.path.join(AllPredictions_Path, Image_Name + " (Fig).png")
 
         # don't save files locally for cloud services:
-        # plt.savefig(Figure_Path, dpi=my_dpi, bbox_inches = "tight")
-
-        # NEW
-        # save_memory_to_image_in_cloud(FinalMask, Cloud_Base_Dir+hash256sha(BinMask_Path))
-        # endNEW
+        # changed:
+        # old - plt.savefig(Figure_Path, dpi=my_dpi, bbox_inches = "tight")
+        # to:
+        # new - save_memory_to_image_in_cloud(FinalMask, Cloud_Base_Dir+hash256sha(BinMask_Path))
 
         print("[INFO] Saving images from list:")
         # Save all images from the list
@@ -1288,19 +1196,20 @@ def analyse_photo(Image_Path, Image_Name,
             # Save using CV2
             if "cv2" in save_CV2_or_PLT:
                 if Saved_Title in titles_to_save:
+                    # OLD file name building:
                     # Temp_Path = os.path.join(AllPredictions_Path1, Image_Name + \
                     #             " (#" + str(n1) + " - " + Saved_Title + ").png")
-
+                    # NEW file name building:
                     Temp_Path = AllPredictions_Path1 + "_CV2_" + str(n1) + "-" + Saved_Title
-                    print(Saved_Title, " -> ", Temp_Path)
-                    # don't save files locally for cloud services:
-                    # cv2.imwrite(Temp_Path, Saved_Image)
+                    # print(Saved_Title, " -> ", Temp_Path)
 
-                    # NEW
-                    # cloud_filename = conf_settings.MEDIA_DIR_NAME+hash256sha(Temp_Path)
+                    # don't save files locally for cloud services:
+                    # OLD - cv2.imwrite(Temp_Path, Saved_Image)
+
+                    # NEW:
                     cloud_filename = hash256sha(Temp_Path)
                     print("Hashed Version -> ", cloud_filename)
-                    save_memory_to_image_in_cloud(Saved_Image, cloud_filename, media_dir=True)
+                    save_image_from_memory_to_cloud(Saved_Image, cloud_filename, media_dir=True)
                     # endNEW
 
 
@@ -1311,45 +1220,28 @@ def analyse_photo(Image_Path, Image_Name,
                         Saved_Image = cv2.cvtColor(Saved_Image, cv2.COLOR_BGR2RGB)
                     # Saved_Image = cv2.cvtColor(Saved_Image, cv2.COLOR_BGR2RGB)
 
+                    # OLD File name building:
                     # Temp_Path = os.path.join(AllPredictions_Path2, Image_Name + \
                     #             " (#" + str(n1) + " - " + Saved_Title + ").png")
+                    # NEW File name building:
                     Temp_Path = AllPredictions_Path2 + "_PLT_" + str(n1) + "-" + Saved_Title
 
                     # don't save files locally for cloud services:
-                    # plt.imsave(Temp_Path,Saved_Image)
+                    # old - plt.imsave(Temp_Path,Saved_Image)
 
-                    # save_memory_to_image_in_cloud(Saved_Image, Temp_Path)
-                    # cloud_filename = conf_settings.MEDIA_DIR_NAME + hash256sha(Temp_Path)
                     cloud_filename = hash256sha(Temp_Path)
-                    print(Saved_Title, " -> ", Temp_Path)
-                    print("Hashed Version -> ", cloud_filename)
-                    save_plt_to_image_in_cloud(Saved_Image, cloud_filename, media_dir=True)
+                    # print(Saved_Title, " -> ", Temp_Path)
+                    # print("Hashed Version -> ", cloud_filename)
+                    save_plt_image_to_cloud(Saved_Image, cloud_filename, media_dir=True)
 
                     url_dict[Saved_Title] = cloud_filename
-
-                    # [interoperability]
-                    # Google Cloud uses Unix-like operating system, "/", ...
-                    # ... whereas for testing locally, "\" might be used:
-                    # try:
-                    #     url_dict[Saved_Title] = Temp_Path.split('/', 1)[1]
-                    # except IndexError:
-                    #     url_dict[Saved_Title] = Temp_Path.split('\\', 1)[1]
 
         # Save segmentation properties
         if Evaluate_Metrics==True and "crack_len_csv" in titles_to_save:
             # crack_length_path = os.path.join(AllPredictions_Path,'Sizes.csv')
             crack_length_path = AllPredictions_Path+'_sizes'
 
-            # [interoperability]
-            # Google Cloud uses Unix-like operating system, "/", ...
-            # ... whereas for testing locally, "\" might be used:
-            # try:
-            #     url_dict["crack_len_csv"] = crack_length_path.split('/', 1)[1]
-            # except IndexError:
-            #     url_dict["crack_len_csv"] = crack_length_path.split('\\', 1)[1]
-
-
-
+            # if no crack was found:
             if Df_Sizes.empty:
                 Df_Sizes = Df_Sizes.append({'Label': '1',
                                             'Loc (x,y)': "[0, 0]",
@@ -1358,14 +1250,13 @@ def analyse_photo(Image_Path, Image_Name,
                                             ignore_index=True)
 
             # don't save files locally for cloud services:
-            # Df_Sizes.to_csv(crack_length_path, index=False)
+            # old - Df_Sizes.to_csv(crack_length_path, index=False)
 
-            print(">>> writing to csv at path: ", crack_length_path)
+            # print(">>> writing to csv at path: ", crack_length_path)
             cloud_filename = hash256sha(crack_length_path)
             save_csv_to_cloud(Df_Sizes, cloud_filename, media_dir=True)
 
             url_dict["crack_len_csv"] = cloud_filename
-
             # save_to_cloud(Df_Sizes, crack_length_path, media=True)
 
     else:
@@ -1387,14 +1278,15 @@ def analyse_photo(Image_Path, Image_Name,
     print("crack_len_csv", url_dict["crack_len_csv"])
     print("Final Watershed", url_dict["Final Watershed"])
 
-    # return Cloud_Base_Dir+hash256sha(url_dict["Overlay"]), \
-    #        Cloud_Base_Dir+hash256sha(url_dict["Binarised (t=" + str(Bin_Threshold) + ")"]), \
-    #        Cloud_Base_Dir+hash256sha(url_dict["crack_len_csv"]), \
-    #        Cloud_Base_Dir+hash256sha(url_dict["Final Watershed"])
 
-    status_dict = get_running_status(1400, "completed_returning")
+    status_dict = get_running_status(1400, "returning_completed")
     save_json_to_cloud(status_dict, json_pure_filename)
 
+    # RETURN the names of the files we uploaded to Google Cloud!
+    # ... we will save the paths in:
+    # views.py class EnqueuePhotoAnalysis(threading.Thread):
+    # ... to the database (see that file to see ...
+    # ... how to save more files to database)
     return url_dict["Overlay"], \
            url_dict["Binarised (t=" + str(Bin_Threshold) + ")"], \
            url_dict["crack_len_csv"], \

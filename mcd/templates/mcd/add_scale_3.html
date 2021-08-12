@@ -6,40 +6,62 @@
     <body onload="get_location('{{ point }}')">
 
     <h1>Add two points to make a line, and specify the real length, to compute the image scale</h1>
-
+{% include 'mcd/navigation/photo_analysis_nav.html' with photo_analysis=display_image %}
 {% if point == 'r' %}
-    <p>
+    <p class="margin-top-15px">
         Currently changing <strong class="text-red">red</strong> marker
+        <br>
+        Please click the button below the image to switch the marker
     </p>
 {% else %}
-    <p>
+    <p class="margin-top-15px">
         Currently changing <strong class="text-green">green</strong> marker
+        <br>
+        Please click the button below the image to switch the marker
     </p>
 {% endif %}
 <div class="floating-wrapper">
     <div class="margin-right-100px">
 
-        <div class="img-container">
-            <div class="relative-wrapper">
-                <a href={% url 'mcd:add-scale-3' display_image.pk clicked_x clicked_y point %}>
-                    <img class="img-scaling" width="640px" height="360px" id="interactive-img" ismap src="{{ display_image.input_photo.url }}">
-                </a>
-                <div id="image-marker-point-1"></div>
-                <div id="image-marker-point-2"></div>
-                <div class="line"></div>
+
+
+        {% if point == 'r' %}
+            <a class="btn btn-success width100" href="../../../../{{ display_image.pk }}/{{ clicked_x2 }}/{{ clicked_y2 }}/g/?{{ clicked_x }},{{ clicked_y }}">
+                Switch to change green marker
+            </a>
+        {% else %}
+            <a class="btn btn-danger width100" href="../../../../{{ display_image.pk }}/{{ clicked_x2 }}/{{ clicked_y2}}/r/?{{ clicked_x }},{{ clicked_y }}">
+                Switch to change red marker
+            </a>
+        {% endif %}
+
+        <div class="record-container">
+            <div class="row">
+                <div class="col-sm-12 image-container">
+                    <a href={% url 'mcd:add-scale-3' display_image.pk clicked_x clicked_y point %}>
+                        <img id="interactive-img" class="image-scaling" ismap src="{{ display_image.input_photo.url }}">
+                    </a>
+                    <div id="image-marker-point-1"></div>
+                    <div id="image-marker-point-2"></div>
+                    <div class="line"></div>
+                </div>
             </div>
         </div>
 
 
-        {% if point == 'r' %}
-            <a class="btn btn-default" href="../../../../{{ display_image.pk }}/{{ clicked_x2 }}/{{ clicked_y2 }}/g/?{{ clicked_x }},{{ clicked_y }}">
-                Switch to change green marker
-            </a>
-        {% else %}
-            <a class="btn btn-default" href="../../../../{{ display_image.pk }}/{{ clicked_x2 }}/{{ clicked_y2}}/r/?{{ clicked_x }},{{ clicked_y }}">
-                Switch to change red marker
-            </a>
-        {% endif %}
+{#        <div class="img-container">#}
+{#            <div class="relative-wrapper">#}
+{#                <a href={% url 'mcd:add-scale-3' display_image.pk clicked_x clicked_y point %}>#}
+{#                    <img class="img-scaling" width="640px" height="360px" id="interactive-img" ismap src="{{ display_image.input_photo.url }}">#}
+{#                </a>#}
+{#                <div id="image-marker-point-1"></div>#}
+{#                <div id="image-marker-point-2"></div>#}
+{#                <div class="line"></div>#}
+{#            </div>#}
+{#        </div>#}
+
+
+
 
     </div>
 
