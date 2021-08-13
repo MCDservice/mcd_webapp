@@ -3,3 +3,6 @@ db_new.sqlite3
 media/
 *.pyc
 *.exe
+mcd/__pycache__/
+mcd/migrations/
+mcd_webapp/__pycache__/
